@@ -1,5 +1,8 @@
 # UAT Görsel İşaretleyici (screenshot-annotator)
 
+> **Canlı (kurulumsuz):** https://yigitteroll.github.io/uataraci/
+> **Tek dosya:** https://yigitteroll.github.io/uataraci/dist/screenshot-annotator.html
+
 UAT testlerinde ekran görüntüleri üzerine hızlıca işaretleme yapmak için tarayıcı tabanlı, bağımlılıksız bir araç. Kurulum ve build gerektirmez; projeler tarayıcının yerel deposunda (**IndexedDB**) saklanır.
 
 ## Çalıştırma
