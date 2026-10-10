@@ -352,6 +352,25 @@
     ctx.restore();
   }
 
+  function drawHover(ctx, ann, view, dpr) {
+    if (!ann || ann.hidden) return;
+    const b = SSA.geom.bbox(ann);
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const p1 = imageToScreen(b.x, b.y, view);
+    const p2 = imageToScreen(b.x + b.w, b.y + b.h, view);
+    const x = Math.min(p1.x, p2.x) - 3;
+    const y = Math.min(p1.y, p2.y) - 3;
+    const w = Math.abs(p2.x - p1.x) + 6;
+    const h = Math.abs(p2.y - p1.y) + 6;
+    ctx.shadowColor = "rgba(79,140,255,0.55)";
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = "rgba(130,175,255,0.95)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
+  }
+
   function drawOverlay(ctx, annotations, view, selectedIds, dpr) {
     if (!selectedIds || !selectedIds.length || !annotations) return;
     ctx.save();
@@ -475,6 +494,7 @@
     textMetrics: textMetrics,
     drawAnn: drawAnn,
     drawOverlay: drawOverlay,
+    drawHover: drawHover,
     renderScene: renderScene,
     drawPaneLabels: drawPaneLabels,
     roundRect: roundRect,

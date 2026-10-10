@@ -115,6 +115,15 @@
           <button class="zoom-btn" data-zoom="fit" id="zoomLabel" type="button" title="Sığdır">100%</button>
           <button class="zoom-btn" data-zoom="in" type="button" title="Yakınlaştır">+</button>
         </div>
+
+        <div class="intro-bar" id="introBar" hidden>
+          <span class="intro-step"><b>1</b> Görsel al</span>
+          <span class="intro-sep">→</span>
+          <span class="intro-step"><b>2</b> İşaretle</span>
+          <span class="intro-sep">→</span>
+          <span class="intro-step"><b>3</b> Paylaş</span>
+          <button class="intro-close" id="introClose" type="button">Anladım</button>
+        </div>
       </main>
 
       <aside class="panel" id="panel">
@@ -224,6 +233,7 @@
     <footer class="statusbar">
       <span id="statusDims">Görsel yok</span>
       <span id="statusSel"></span>
+      <span id="statusHint" class="status-hint"></span>
       <span class="spacer"></span>
       <span id="statusZoom">Zoom 100%</span>
       <span id="statusPos">0, 0</span>
@@ -276,6 +286,14 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="snackbar" id="snackbar" hidden>
+    <span id="snackbarMsg"></span>
+    <button class="snackbar-undo" id="snackbarUndo" type="button">Geri Al</button>
+    <button class="snackbar-close" id="snackbarClose" type="button" title="Kapat">×</button>
+  </div>
+
+  <div class="ctx-menu" id="ctxMenu" hidden></div>
 
   <input type="file" id="fileInput" accept="image/*" hidden />
   <input type="file" id="fileInput2" accept="image/*" hidden />

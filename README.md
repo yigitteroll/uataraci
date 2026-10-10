@@ -77,6 +77,14 @@ Gmail, **içinde `.js` bulunan `.zip`** dosyalarını güvenlik nedeniyle engell
 - Herhangi bir öğeyi taşımak için **V** ile Seç aracına geçip öğenin üzerine tıklayıp sürükleyin.
 - **Boyutlandırma tüm öğelerde çalışır:** dikdörtgen/elips/vurgu/blur kenar-köşe tutamaçlarıyla; ok/çizgi uç noktalarından; metin/etiket, serbest çizim, çarpı/tik, pin ve numara ise **köşe tutamaçlarından oransal** büyütülüp küçültülür.
 
+## Kolaylıklar
+- **Sağ tık:** öğede → *Çoğalt / Metni düzenle / Öne getir / Arkaya gönder / Sil*; boş alanda → *Panodan Yapıştır / Görsele sığdır / %100*.
+- **Geri Al bildirimi:** silme sonrası alttaki şeritten tek tıkla geri al.
+- **Durum çubuğu ipucu:** seçili aracın nasıl kullanılacağını gösterir.
+- **Otomatik dosya adı:** `proje-yyyymmdd-hhmmss.png`.
+- **İlk kullanım şeridi:** Görsel al → İşaretle → Paylaş.
+- Fare ile bir öğenin üzerine gelince hafif vurgu.
+
 ## Çıktı
 - **PNG İndir**: işaretlemeler görsele gömülü PNG
 - **Kopyala**: sonucu panoya görsel olarak kopyala (Jira/Teams'e yapıştır)

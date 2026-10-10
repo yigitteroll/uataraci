@@ -161,7 +161,8 @@
       spaceDown: false,
       pointer: { screen: { x: 0, y: 0 }, image: { x: 0, y: 0 } },
       preview: null,
-      previewPane: 1
+      previewPane: 1,
+      hover: null
     },
 
     /* ---------- init ---------- */
@@ -184,7 +185,9 @@
         "textModalInput", "textModalOk", "textModalCancel", "textModalClose", "textModalTitle",
         "textFontRange", "textFontVal", "textBg", "autoSelect",
         "compareRow", "img2MoveBtn", "img2SideBtn", "img2OverlayBtn",
-        "img2OpacityRow", "img2Opacity", "img2OpacityVal"
+        "img2OpacityRow", "img2Opacity", "img2OpacityVal",
+        "statusHint", "snackbar", "snackbarMsg", "snackbarUndo", "snackbarClose",
+        "ctxMenu", "introBar", "introClose"
       ];
       ids.forEach(function (id) {
         self.el[id] = document.getElementById(id);
@@ -231,6 +234,7 @@
       this.updatePropVisibility();
       this.syncProps();
       this.render();
+      this.maybeShowIntro();
 
       window.addEventListener("beforeunload", function () {
         self.flushSave();
@@ -293,6 +297,13 @@
       this.state.pointer.screen = screen;
       this.state.pointer.image = image;
       this.updateStatus();
+    },
+    setHover: function (h) {
+      const cur = this.state.hover ? this.state.hover.id : null;
+      const nxt = h ? h.id : null;
+      if (cur === nxt) return;
+      this.state.hover = h;
+      this.render();
     },
 
     /* ---------- view ops ---------- */
@@ -489,6 +500,7 @@
       this.commitHistory();
       this.render();
       this.saveSoon();
+      this.showUndo("Öğe silindi");
     },
 
     /* ---------- annotations ---------- */
@@ -542,6 +554,162 @@
       this.render();
       this.saveSoon();
       this.setSelection([]);
+    },
+
+    /* ---------- duplicate / delete / context ---------- */
+    duplicateAnn: function (a) {
+      const p = this.state.project;
+      if (!p) return;
+      const pane = this.state.activePane;
+      const copy = SSA.util.clone(a);
+      copy.id = SSA.util.uid();
+      SSA.geom.translate(copy, 16, 16);
+      if (pane === 2) p.annotations2.push(copy);
+      else p.annotations.push(copy);
+      this.setSelection([copy.id]);
+      this.commitHistory();
+      this.renderLayers();
+      this.render();
+      this.saveSoon();
+    },
+    deleteAnn: function (a) {
+      const p = this.state.project;
+      if (!p) return;
+      const pane = this.state.activePane;
+      const arr = pane === 2 ? p.annotations2 : p.annotations;
+      const kept = arr.filter(function (x) {
+        return x !== a;
+      });
+      if (pane === 2) p.annotations2 = kept;
+      else p.annotations = kept;
+      this.setSelection(
+        this.activeIds().filter(function (id) {
+          return id !== a.id;
+        })
+      );
+      this.commitHistory();
+      this.renderLayers();
+      this.render();
+      this.saveSoon();
+      this.showUndo("Öğe silindi");
+    },
+    pasteFromClipboard: function () {
+      const self = this;
+      if (navigator.clipboard && navigator.clipboard.read) {
+        navigator.clipboard
+          .read()
+          .then(function (items) {
+            for (let i = 0; i < items.length; i++) {
+              const types = items[i].types;
+              for (let j = 0; j < types.length; j++) {
+                if (types[j].indexOf("image") === 0) {
+                  return items[i].getType(types[j]).then(function (blob) {
+                    self.openImageFromBlob(blob, null, self.state.activePane);
+                  });
+                }
+              }
+            }
+            self.toast("Panoda görsel bulunamadı", "error");
+          })
+          .catch(function () {
+            self.toast("Panoya erişilemedi. Ctrl+V kullanın.", "error");
+          });
+      } else {
+        self.toast("Ctrl+V ile yapıştırın", "error");
+      }
+    },
+    showUndo: function (msg) {
+      const self = this;
+      this.el.snackbarMsg.textContent = msg;
+      this.el.snackbar.hidden = false;
+      requestAnimationFrame(function () {
+        self.el.snackbar.classList.add("is-show");
+      });
+      clearTimeout(this._snackTimer);
+      this._snackTimer = setTimeout(function () {
+        self.hideUndo();
+      }, 5000);
+    },
+    hideUndo: function () {
+      const bar = this.el.snackbar;
+      bar.classList.remove("is-show");
+      clearTimeout(this._snackTimer);
+      this._snackTimer = setTimeout(function () {
+        bar.hidden = true;
+      }, 200);
+    },
+    undoFromSnackbar: function () {
+      this.hideUndo();
+      this.undo();
+    },
+    openContextMenu: function (x, y, items) {
+      const self = this;
+      const menu = this.el.ctxMenu;
+      menu.innerHTML = "";
+      items.forEach(function (it) {
+        if (it.sep) {
+          const s = document.createElement("div");
+          s.className = "ctx-sep";
+          menu.appendChild(s);
+          return;
+        }
+        const b = document.createElement("button");
+        b.type = "button";
+        if (it.danger) b.className = "danger";
+        b.textContent = it.label;
+        b.addEventListener("click", function () {
+          self.closeContextMenu();
+          it.act();
+        });
+        menu.appendChild(b);
+      });
+      menu.hidden = false;
+      const mw = menu.offsetWidth;
+      const mh = menu.offsetHeight;
+      menu.style.left = Math.min(x, window.innerWidth - mw - 8) + "px";
+      menu.style.top = Math.min(y, window.innerHeight - mh - 8) + "px";
+    },
+    closeContextMenu: function () {
+      this.el.ctxMenu.hidden = true;
+    },
+    setStatusHint: function () {
+      const el = this.el.statusHint;
+      if (!el) return;
+      const s = this.state;
+      if (s.moveImage2 && s.project && s.project.image2) {
+        el.innerHTML = "<b>Taşı</b> — 2. görselin üzerinde sürükleyin";
+        return;
+      }
+      const map = {
+        select: "<b>Seç</b> — öğeye tıkla & sürükle · boş alanda sürükle = kaydır",
+        pan: "<b>Kaydır</b> — görünümü sürükleyin",
+        crop: "<b>Kırp</b> — kesilecek alanı sürükleyin",
+        arrow: "<b>Ok</b> — başlangıçtan bitişe sürükleyin",
+        line: "<b>Çizgi</b> — iki nokta arasını sürükleyin",
+        freehand: "<b>Kalem</b> — basılı tutup çizin",
+        strike: "<b>Üstünü çiz</b> — çizmek için sürükleyin",
+        rect: "<b>Dikdörtgen</b> — alan üzerinde sürükleyin",
+        ellipse: "<b>Elips</b> — alan üzerinde sürükleyin",
+        highlight: "<b>Vurgu</b> — parlatılacak alanı sürükleyin",
+        blur: "<b>Bulanık/Mozaik</b> — gizlenecek bölgeyi sürükleyin",
+        text: "<b>Metin</b> — yazının yerine tıklayın",
+        label: "<b>Etiket</b> — etiketin yerine tıklayın",
+        pin: "<b>Pin</b> — iğne yerine tıklayın",
+        number: "<b>Numara</b> — yere tıklayın (sırayla artar)",
+        cross: "<b>Çarpı</b> — rozet yerine tıklayın",
+        tick: "<b>Tik</b> — rozet yerine tıklayın"
+      };
+      el.innerHTML = map[s.tool] || "";
+    },
+    maybeShowIntro: function () {
+      const prefs = SSA.Store.prefs();
+      if (!prefs.introSeen) this.el.introBar.hidden = false;
+    },
+    dismissIntro: function () {
+      this.el.introBar.hidden = true;
+      const prefs = SSA.Store.prefs();
+      prefs.introSeen = true;
+      SSA.Store.setPrefs(prefs);
     },
 
     /* ---------- history ---------- */
@@ -642,6 +810,16 @@
         SSA.Render.drawOverlay(this.ctx, p.annotations, v, this.state.selectedIds, this.dpr);
         if (p.image2) {
           SSA.Render.drawOverlay(this.ctx, p.annotations2 || [], this.viewForPane(2), this.state.selectedIds2, this.dpr);
+        }
+        const hv = this.state.hover;
+        if (hv) {
+          const arr = this.paneAnns(hv.pane);
+          const a = arr.filter(function (x) {
+            return x.id === hv.id;
+          })[0];
+          if (a && this.paneIds(hv.pane).indexOf(a.id) < 0) {
+            SSA.Render.drawHover(this.ctx, a, this.viewForPane(hv.pane), this.dpr);
+          }
         }
         SSA.Render.drawPaneLabels(this.ctx, p, v, this.dpr);
       }
@@ -755,6 +933,7 @@
                 self.commitHistory();
                 self.render();
                 self.saveSoon();
+                self.showUndo("Öğe silindi");
               }
               return;
             }
@@ -854,6 +1033,7 @@
       this.el.img2OpacityVal.textContent = Math.round(op2 * 100) + "%";
       this.el.img2MoveBtn.classList.toggle("is-active", !!s.moveImage2);
       this._syncing = false;
+      this.setStatusHint();
     },
 
     setProp: function (key, value) {
@@ -1106,6 +1286,22 @@
           self.setActivePane(parseInt(this.dataset.pane, 10));
         });
       }
+
+      this.el.snackbarUndo.addEventListener("click", function () {
+        self.undoFromSnackbar();
+      });
+      this.el.snackbarClose.addEventListener("click", function () {
+        self.hideUndo();
+      });
+      this.el.introClose.addEventListener("click", function () {
+        self.dismissIntro();
+      });
+      document.addEventListener("pointerdown", function (e) {
+        if (!self.el.ctxMenu.hidden && !e.target.closest("#ctxMenu")) self.closeContextMenu();
+      });
+      window.addEventListener("resize", function () {
+        self.closeContextMenu();
+      });
 
       document.addEventListener("click", function (e) {
         if (!self.el.moreMenu.hidden && !e.target.closest(".menu-wrap")) self.el.moreMenu.hidden = true;
@@ -1683,6 +1879,7 @@
           return;
         }
         if (e.key === "Escape") {
+          self.closeContextMenu();
           self.state.preview = null;
           self.setSelection([]);
           self.setTool("select");

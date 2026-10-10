@@ -419,11 +419,55 @@
     App.editTextAnn(hit);
   }
 
+  function onContextMenu(ev) {
+    ev.preventDefault();
+    const App = SSA.App;
+    if (!App || !App.state.project || !App.state.project.image) return;
+    const sp = relPt(ev);
+    const world = App.screenToImage(sp.x, sp.y);
+    const pane = paneAt(world);
+    if (App.state.activePane !== pane) App.setActivePane(pane);
+    const ip = toLocal(world, pane);
+    const view = viewForPane(pane);
+    const anns = App.paneAnns(pane);
+    const tol = 6 / view.scale;
+    let hit = null;
+    for (let i = anns.length - 1; i >= 0; i--) {
+      if (SSA.geom.hit(anns[i], ip, tol)) {
+        hit = anns[i];
+        break;
+      }
+    }
+    const items = [];
+    if (hit) {
+      App.setSelection([hit.id]);
+      App.render();
+      items.push({ label: "Çoğalt", act: function () { App.duplicateAnn(hit); } });
+      if (hit.type === "text" || hit.type === "label") {
+        items.push({ label: "Metni düzenle", act: function () { App.editTextAnn(hit); } });
+      }
+      items.push({ label: "Öne getir", act: function () { App.moveLayer(hit, 1); } });
+      items.push({ label: "Arkaya gönder", act: function () { App.moveLayer(hit, -1); } });
+      items.push({ sep: true });
+      items.push({ label: "Sil", danger: true, act: function () { App.deleteAnn(hit); } });
+    } else {
+      items.push({ label: "Panodan Yapıştır", act: function () { App.pasteFromClipboard(); } });
+      items.push({ label: "Görsele sığdır", act: function () { App.fitView(); } });
+      items.push({ label: "%100 boyut", act: function () { App.setZoom(1); } });
+      if (App.state.project.image2) {
+        items.push({ sep: true });
+        items.push({ label: "2. görseli kaldır", act: function () { App.removeSecondImage(); } });
+      }
+    }
+    App.openContextMenu(ev.clientX, ev.clientY, items);
+  }
+
   function updateHoverCursor(sp, world) {
     const App = SSA.App;
     const tool = App.state.tool;
     if (App.state.spaceDown || tool === "pan") {
       setCursor("cursor-pan");
+      App.setHover(null);
       return;
     }
     if (App.state.moveImage2 && App.state.project.image2) {
@@ -432,39 +476,42 @@
       const inside =
         world.x >= o.x && world.x <= o.x + im2.w && world.y >= o.y && world.y <= o.y + im2.h;
       setCursor(inside ? "cursor-pan" : "");
-      return;
-    }
-    if (tool !== "select") {
-      setCursor("");
+      App.setHover(null);
       return;
     }
     const pane = paneAt(world);
     const ip = toLocal(world, pane);
     const view = viewForPane(pane);
     const anns = App.paneAnns(pane);
-    const ids = App.paneIds(pane);
-    if (ids.length === 1) {
-      const a = anns.filter(function (x) {
-        return x.id === ids[0];
-      })[0];
-      if (a) {
-        const h = SSA.geom.handleAt(a, sp, view, 9);
-        if (h) {
-          canvas.style.cursor = SSA.geom.handleCursor(h);
-          canvas.className = "";
-          return;
-        }
-      }
-    }
     const tol = 6 / view.scale;
-    let hit = false;
+    let hit = null;
     for (let i = anns.length - 1; i >= 0; i--) {
+      if (anns[i].hidden) continue;
       if (SSA.geom.hit(anns[i], ip, tol)) {
-        hit = true;
+        hit = anns[i];
         break;
       }
     }
-    setCursor(hit ? "cursor-move" : "cursor-default");
+    App.setHover(hit ? { id: hit.id, pane: pane } : null);
+    if (tool === "select") {
+      const ids = App.paneIds(pane);
+      if (ids.length === 1) {
+        const a = anns.filter(function (x) {
+          return x.id === ids[0];
+        })[0];
+        if (a) {
+          const h = SSA.geom.handleAt(a, sp, view, 9);
+          if (h) {
+            canvas.style.cursor = SSA.geom.handleCursor(h);
+            canvas.className = "";
+            return;
+          }
+        }
+      }
+      setCursor(hit ? "cursor-move" : "cursor-default");
+    } else {
+      setCursor("");
+    }
   }
 
   function setCursor(cls) {
@@ -483,8 +530,9 @@
         if (SSA.App) SSA.App.render();
       });
       cv.addEventListener("dblclick", onDblClick);
-      cv.addEventListener("contextmenu", function (e) {
-        e.preventDefault();
+      cv.addEventListener("contextmenu", onContextMenu);
+      cv.addEventListener("mouseleave", function () {
+        if (SSA.App && SSA.App.setHover) SSA.App.setHover(null);
       });
     },
     session: session,
