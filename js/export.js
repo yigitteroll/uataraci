@@ -94,6 +94,43 @@
       });
     },
 
+    downloadPNGRegion(project, rect, name) {
+      renderFull(project, function (c) {
+        if (!c) return;
+        const gap = SSA.PANE_GAP || 24;
+        const has2 = !!(project.image2 && project.imageEl2);
+        const o2 = has2 ? project.image2Pos || { x: project.image.w + gap, y: 0 } : { x: 0, y: 0 };
+        const minX = has2 ? Math.min(0, o2.x) : 0;
+        const minY = has2 ? Math.min(0, o2.y) : 0;
+        const pad = 20;
+        let rx = Math.floor(rect.x - minX - pad);
+        let ry = Math.floor(rect.y - minY - pad);
+        let rw = Math.ceil(rect.w + pad * 2);
+        let rh = Math.ceil(rect.h + pad * 2);
+        rx = SSA.util.clamp(rx, 0, c.width - 1);
+        ry = SSA.util.clamp(ry, 0, c.height - 1);
+        rw = Math.min(rw, c.width - rx);
+        rh = Math.min(rh, c.height - ry);
+        if (rw < 1 || rh < 1) return;
+        const out = document.createElement("canvas");
+        out.width = rw;
+        out.height = rh;
+        out.getContext("2d").drawImage(c, rx, ry, rw, rh, 0, 0, rw, rh);
+        out.toBlob(function (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = safeName(name) + "-secim-" + stamp() + ".png";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(function () {
+            URL.revokeObjectURL(url);
+          }, 3000);
+        }, "image/png");
+      });
+    },
+
     copyPNG(project) {
       return new Promise(function (resolve, reject) {
         if (!navigator.clipboard || !window.ClipboardItem) {

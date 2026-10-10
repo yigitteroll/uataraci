@@ -6,6 +6,7 @@
   const DRAG_TOOLS = {
     arrow: 1,
     line: 1,
+    measure: 1,
     freehand: 1,
     strike: 1,
     rect: 1,
@@ -59,6 +60,10 @@
       w: Math.abs(x2 - x1),
       h: Math.abs(y2 - y1)
     };
+  }
+
+  function rectsIntersect(a, b) {
+    return !(a.x > b.x + b.w || b.x > a.x + a.w || a.y > b.y + b.h || b.y > a.y + a.h);
   }
 
   function startPan(sp) {
@@ -160,6 +165,17 @@
           return { ann: a, snap: SSA.util.clone(a), id: a.id };
         });
       } else {
+        if (ev.ctrlKey || ev.metaKey) {
+          session.mode = "marquee";
+          session.startImg = ip;
+          session.pane = pane;
+          session.marqueeAdd = ev.shiftKey;
+          App.state.preview = { type: "marquee", x: ip.x, y: ip.y, w: 0, h: 0 };
+          App.state.previewPane = pane;
+          canvas.style.cursor = "crosshair";
+          ev.preventDefault();
+          return;
+        }
         if (!ev.shiftKey) App.setSelection([]);
         App.render();
         startPan(sp);
@@ -234,11 +250,18 @@
       return;
     }
 
+    if (session.mode === "marquee") {
+      const r = normalizeRect(session.startImg.x, session.startImg.y, ip.x, ip.y);
+      App.state.preview = { type: "marquee", x: r.x, y: r.y, w: r.w, h: r.h };
+      App.render();
+      return;
+    }
+
     if (session.mode === "draw" && session.current) {
       const a = session.current;
       if (a.type === "freehand" || a.type === "strike") {
         a.points.push([ip.x, ip.y]);
-      } else if (a.type === "arrow" || a.type === "line") {
+      } else if (a.type === "arrow" || a.type === "line" || a.type === "measure") {
         a.x2 = ip.x;
         a.y2 = ip.y;
       } else if (BBOX_TOOLS[a.type]) {
@@ -308,12 +331,37 @@
       return;
     }
 
+    if (session.mode === "marquee") {
+      const pane = session.pane || App.state.activePane;
+      const pv = App.state.preview;
+      const r = pv && pv.type === "marquee" ? { x: pv.x, y: pv.y, w: pv.w, h: pv.h } : null;
+      const add = session.marqueeAdd;
+      reset();
+      canvas.style.cursor = "";
+      if (r) {
+        const anns = App.paneAnns(pane);
+        const hits = [];
+        for (let i = 0; i < anns.length; i++) {
+          if (anns[i].hidden) continue;
+          if (rectsIntersect(r, SSA.geom.bbox(anns[i]))) hits.push(anns[i].id);
+        }
+        App.setActivePane(pane);
+        const ids = add ? App.paneIds(pane).slice() : [];
+        for (let i = 0; i < hits.length; i++) {
+          if (ids.indexOf(hits[i]) < 0) ids.push(hits[i]);
+        }
+        App.setSelection(ids);
+      }
+      App.render();
+      return;
+    }
+
     if (session.mode === "draw" && session.current) {
       const a = session.current;
       let ok = true;
       if (a.type === "freehand" || a.type === "strike") {
         ok = a.points.length > 1;
-      } else if (a.type === "arrow" || a.type === "line") {
+      } else if (a.type === "arrow" || a.type === "line" || a.type === "measure") {
         ok = Math.hypot(a.x2 - a.x1, a.y2 - a.y1) > 4;
       } else if (BBOX_TOOLS[a.type]) {
         ok = a.w > 4 && a.h > 4;
@@ -443,6 +491,7 @@
       App.setSelection([hit.id]);
       App.render();
       items.push({ label: "Çoğalt", act: function () { App.duplicateAnn(hit); } });
+      items.push({ label: "Seçili alanı PNG indir", act: function () { App.exportSelection(); } });
       if (hit.type === "text" || hit.type === "label") {
         items.push({ label: "Metni düzenle", act: function () { App.editTextAnn(hit); } });
       }

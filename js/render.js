@@ -292,6 +292,44 @@
     ctx.fillText(String(a.n), a.x, a.y + 0.5);
   }
 
+  function drawMeasure(ctx, a) {
+    const dx = a.x2 - a.x1;
+    const dy = a.y2 - a.y1;
+    const len = Math.hypot(dx, dy);
+    const nx = len ? -dy / len : 0;
+    const ny = len ? dx / len : 0;
+    const cap = Math.max(6, (a.width || 3) * 2);
+    ctx.lineWidth = a.width || 3;
+    ctx.beginPath();
+    ctx.moveTo(a.x1, a.y1);
+    ctx.lineTo(a.x2, a.y2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(a.x1 - nx * cap, a.y1 - ny * cap);
+    ctx.lineTo(a.x1 + nx * cap, a.y1 + ny * cap);
+    ctx.moveTo(a.x2 - nx * cap, a.y2 - ny * cap);
+    ctx.lineTo(a.x2 + nx * cap, a.y2 + ny * cap);
+    ctx.stroke();
+
+    const midX = (a.x1 + a.x2) / 2;
+    const midY = (a.y1 + a.y2) / 2;
+    const wpx = Math.round(Math.abs(dx));
+    const hpx = Math.round(Math.abs(dy));
+    const txt = wpx + " × " + hpx + " px" + (wpx && hpx ? "  (" + Math.round(len) + ")" : "");
+    const fs = 13;
+    ctx.font = fontStr(fs, 600);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const tw = ctx.measureText(txt).width;
+    const padX = 7;
+    const h = fs + 10;
+    roundRect(ctx, midX - tw / 2 - padX, midY - h / 2, tw + padX * 2, h, 6);
+    ctx.fillStyle = a.color;
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(txt, midX, midY + 0.5);
+  }
+
   function drawAnn(ctx, a, env) {
     if (a.hidden) return;
     ctx.save();
@@ -308,6 +346,9 @@
         ctx.moveTo(a.x1, a.y1);
         ctx.lineTo(a.x2, a.y2);
         ctx.stroke();
+        break;
+      case "measure":
+        drawMeasure(ctx, a);
         break;
       case "arrow":
         drawArrow(ctx, a);
@@ -412,7 +453,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     if (options.background !== false) {
-      ctx.fillStyle = "#0b0d11";
+      ctx.fillStyle = SSA.theme && SSA.theme.bg ? SSA.theme.bg : "#0b0d11";
       ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     }
 
@@ -440,6 +481,27 @@
         /* image not ready */
       }
       ctx.restore();
+    }
+    if (SSA.view && SSA.view.grid) {
+      const step = SSA.view.gridSize || 50;
+      const cww = canvas.width / dpr;
+      const chh = canvas.height / dpr;
+      const gx0 = Math.floor((0 - view.ox) / view.scale / step) * step;
+      const gy0 = Math.floor((0 - view.oy) / view.scale / step) * step;
+      const gx1 = (cww - view.ox) / view.scale;
+      const gy1 = (chh - view.oy) / view.scale;
+      ctx.lineWidth = 1 / view.scale;
+      ctx.strokeStyle = (SSA.theme && SSA.theme.grid) || "rgba(255,255,255,0.06)";
+      ctx.beginPath();
+      for (let gx = gx0; gx <= gx1; gx += step) {
+        ctx.moveTo(gx, gy0);
+        ctx.lineTo(gx, gy1);
+      }
+      for (let gy = gy0; gy <= gy1; gy += step) {
+        ctx.moveTo(gx0, gy);
+        ctx.lineTo(gx1, gy);
+      }
+      ctx.stroke();
     }
     const env = { canvas: canvas, view: view, dpr: dpr };
     const env2 = {
@@ -489,6 +551,73 @@
     ctx.restore();
   }
 
+  function drawRulers(ctx, view, dpr) {
+    const cw = ctx.canvas.width / dpr;
+    const ch = ctx.canvas.height / dpr;
+    const TH = 20;
+    const scale = view.scale;
+    let step = (SSA.view && SSA.view.gridSize) || 50;
+    while (step * scale < 46) step *= 2;
+    while (step * scale > 220) step /= 2;
+    const bg = (SSA.theme && SSA.theme.rulerBg) || "rgba(20,24,33,0.92)";
+    const fg = (SSA.theme && SSA.theme.rulerFg) || "#8b93a7";
+    const ln = (SSA.theme && SSA.theme.rulerLine) || "rgba(255,255,255,0.25)";
+    const ac = (SSA.theme && SSA.theme.accent) || "#4f8cff";
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, cw, TH);
+    ctx.fillRect(0, 0, TH, ch);
+    ctx.strokeStyle = ln;
+    ctx.lineWidth = 1;
+    ctx.font = fontStr(10, 500);
+    ctx.fillStyle = fg;
+    ctx.textBaseline = "middle";
+    const wx1 = (cw - view.ox) / scale;
+    const wy1 = (ch - view.oy) / scale;
+    const sx0 = Math.floor((0 - view.ox) / scale / step) * step;
+    const sy0 = Math.floor((0 - view.oy) / scale / step) * step;
+    ctx.textAlign = "left";
+    for (let wx = sx0; wx <= wx1; wx += step) {
+      const sx = wx * scale + view.ox;
+      if (sx < TH + 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(sx, TH - 6);
+      ctx.lineTo(sx, TH);
+      ctx.stroke();
+      ctx.fillText(String(Math.round(wx)), sx + 3, TH / 2 - 3);
+    }
+    for (let wy = sy0; wy <= wy1; wy += step) {
+      const sy = wy * scale + view.oy;
+      if (sy < TH + 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(TH - 6, sy);
+      ctx.lineTo(TH, sy);
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(TH / 2 + 3, sy - 3);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "left";
+      ctx.fillText(String(Math.round(wy)), 0, 0);
+      ctx.restore();
+    }
+    const sp = SSA.App && SSA.App.state ? SSA.App.state.pointer.screen : null;
+    if (sp) {
+      ctx.strokeStyle = ac;
+      ctx.beginPath();
+      ctx.moveTo(sp.x, 0);
+      ctx.lineTo(sp.x, TH);
+      ctx.moveTo(0, sp.y);
+      ctx.lineTo(TH, sp.y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, TH, TH);
+    ctx.strokeStyle = ln;
+    ctx.strokeRect(0.5, 0.5, TH, TH);
+    ctx.restore();
+  }
+
   SSA.Render = {
     measureText: measureText,
     textMetrics: textMetrics,
@@ -497,6 +626,7 @@
     drawHover: drawHover,
     renderScene: renderScene,
     drawPaneLabels: drawPaneLabels,
+    drawRulers: drawRulers,
     roundRect: roundRect,
     imageToScreen: imageToScreen,
     applyRegion: applyRegion

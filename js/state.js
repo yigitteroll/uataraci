@@ -6,6 +6,12 @@
   /* World-space gap (px) between the two comparison panes. */
   SSA.PANE_GAP = 24;
 
+  /* Active theme runtime values (updated by the UI). */
+  SSA.theme = { mode: "dark", bg: "#0b0d11" };
+
+  /* Overlay view options (grid/ruler) updated by the UI. */
+  SSA.view = { grid: false, ruler: false, gridSize: 50 };
+
   /* ---------------- Utilities ---------------- */
   SSA.util = {
     uid() {
@@ -344,6 +350,12 @@
         base.x2 = pt.x;
         base.y2 = pt.y;
         break;
+      case "measure":
+        base.x1 = pt.x;
+        base.y1 = pt.y;
+        base.x2 = pt.x;
+        base.y2 = pt.y;
+        break;
       case "freehand":
       case "strike":
         base.points = [[pt.x, pt.y]];
@@ -390,6 +402,7 @@
         base.n =
           SSA.App && SSA.App.state.project ? SSA.App.state.project.numberSeed : 1;
         base.r = 13;
+        base.note = "";
         break;
       default:
         base.x = pt.x;

@@ -11,7 +11,7 @@
   }
 
   const BBOX_TYPES = { rect: 1, ellipse: 1, highlight: 1, blur: 1 };
-  const LINE_TYPES = { arrow: 1, line: 1 };
+  const LINE_TYPES = { arrow: 1, line: 1, measure: 1 };
   const PATH_TYPES = { freehand: 1, strike: 1 };
   const SCALE_TYPES = { text: 1, label: 1, freehand: 1, strike: 1, cross: 1, tick: 1, pin: 1, number: 1 };
   const RESIZABLE = {
@@ -21,6 +21,7 @@
     blur: 1,
     arrow: 1,
     line: 1,
+    measure: 1,
     text: 1,
     label: 1,
     freehand: 1,

@@ -21,8 +21,12 @@
     label: '<path d="M20.6 13.4 12.6 21.4a2 2 0 0 1-2.8 0L3 14.6V6a3 3 0 0 1 3-3h8.6l6 6a2 2 0 0 1 0 2.8z"/><circle cx="8.5" cy="8.5" r="1.4"/>',
     pin: '<path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
     number: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v9"/><path d="m10 9.5 2-2"/>',
+    ruler: '<rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/>',
     cross: '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
     tick: '<path d="M5 13l4 4L19 7"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moon: '<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    auto: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',
     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
     eyeOff: '<path d="M3 3l18 18"/><path d="M10.6 5.2A9.7 9.7 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2"/><path d="M6.3 6.3A17 17 0 0 0 2 12s3.5 7 10 7a9.6 9.6 0 0 0 4.2-.9"/>',
     up: '<path d="m6 15 6-6 6 6"/>',
@@ -51,6 +55,7 @@
     { sep: true },
     { id: "arrow", icon: "arrow", label: "Ok", key: "A" },
     { id: "line", icon: "line", label: "Çizgi", key: "L" },
+    { id: "measure", icon: "ruler", label: "Ölçüm", key: "" },
     { id: "freehand", icon: "pen", label: "Serbest Çizim", key: "P" },
     { id: "strike", icon: "strike", label: "Üstünü Çiz", key: "S" },
     { id: "rect", icon: "rect", label: "Dikdörtgen", key: "R" },
@@ -74,6 +79,7 @@
   const TYPE_ICON = {
     arrow: "arrow",
     line: "line",
+    measure: "ruler",
     freehand: "pen",
     strike: "strike",
     rect: "rect",
@@ -158,6 +164,7 @@
       blurStrength: 12,
       autoSelect: true,
       moveImage2: false,
+      theme: "system",
       spaceDown: false,
       pointer: { screen: { x: 0, y: 0 }, image: { x: 0, y: 0 } },
       preview: null,
@@ -173,13 +180,13 @@
       this.stage = document.getElementById("stage");
 
       const ids = [
-        "projectName", "saveStatus", "toolbar", "layerList", "swatches",
+        "projectName", "saveStatus", "toolbar", "layerList", "notesBlock", "notesList", "swatches",
         "colorInput", "widthRange", "widthVal", "opacityRange", "opacityVal",
         "fontRow", "fontRange", "fontVal", "blurRow", "blurMode", "blurStrengthRow",
         "blurRange", "blurVal", "numberRow", "numberSeed", "numberReset",
         "undoBtn", "redoBtn", "openBtn", "pasteBtn", "captureBtn", "compareBtn", "exportBtn", "copyBtn",
         "projectsBtn", "projectsPop", "projectsList", "projectsClose", "newProjectBtn",
-        "moreBtn", "moreMenu", "fileInput", "fileInput2", "jsonInput", "stageEmpty", "emptyOpen",
+        "moreBtn", "moreMenu", "themeBtn", "fileInput", "fileInput2", "jsonInput", "stageEmpty", "emptyOpen",
         "emptyPaste", "emptyCapture", "dropHint", "zoomLabel", "statusDims", "statusZoom", "statusPos",
         "statusSel", "deleteSelected", "paneSwitch", "shortcutList", "toast", "textModal",
         "textModalInput", "textModalOk", "textModalCancel", "textModalClose", "textModalTitle",
@@ -235,6 +242,15 @@
       this.syncProps();
       this.render();
       this.maybeShowIntro();
+      this.applyTheme();
+      if (window.matchMedia) {
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        const onScheme = function () {
+          if (self.state.theme === "system") self.applyTheme();
+        };
+        if (mq.addEventListener) mq.addEventListener("change", onScheme);
+        else if (mq.addListener) mq.addListener(onScheme);
+      }
 
       window.addEventListener("beforeunload", function () {
         self.flushSave();
@@ -254,6 +270,10 @@
       if (p.blurMode) s.blurMode = p.blurMode;
       if (p.blurStrength) s.blurStrength = p.blurStrength;
       if (typeof p.autoSelect === "boolean") s.autoSelect = p.autoSelect;
+      if (p.theme) s.theme = p.theme;
+      if (typeof p.grid === "boolean") SSA.view.grid = p.grid;
+      if (typeof p.ruler === "boolean") SSA.view.ruler = p.ruler;
+      if (p.gridSize) SSA.view.gridSize = p.gridSize;
     },
 
     savePrefs: function () {
@@ -265,7 +285,11 @@
         fontSize: s.fontSize,
         blurMode: s.blurMode,
         blurStrength: s.blurStrength,
-        autoSelect: s.autoSelect
+        autoSelect: s.autoSelect,
+        theme: s.theme,
+        grid: SSA.view.grid,
+        ruler: SSA.view.ruler,
+        gridSize: SSA.view.gridSize
       });
     },
 
@@ -681,11 +705,12 @@
         return;
       }
       const map = {
-        select: "<b>Seç</b> — öğeye tıkla & sürükle · boş alanda sürükle = kaydır",
+        select: "<b>Seç</b> — tıkla & sürükle · boş alan = kaydır · Ctrl+sürükle = çoklu seç",
         pan: "<b>Kaydır</b> — görünümü sürükleyin",
         crop: "<b>Kırp</b> — kesilecek alanı sürükleyin",
         arrow: "<b>Ok</b> — başlangıçtan bitişe sürükleyin",
         line: "<b>Çizgi</b> — iki nokta arasını sürükleyin",
+        measure: "<b>Ölçüm</b> — ölçmek için sürükleyin (W × H px)",
         freehand: "<b>Kalem</b> — basılı tutup çizin",
         strike: "<b>Üstünü çiz</b> — çizmek için sürükleyin",
         rect: "<b>Dikdörtgen</b> — alan üzerinde sürükleyin",
@@ -700,6 +725,48 @@
         tick: "<b>Tik</b> — rozet yerine tıklayın"
       };
       el.innerHTML = map[s.tool] || "";
+    },
+    applyTheme: function () {
+      const pref = this.state.theme || "system";
+      let eff = pref;
+      if (pref === "system") {
+        eff = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", eff);
+      SSA.theme.mode = eff;
+      SSA.theme.bg = eff === "light" ? "#e9edf4" : "#0b0d11";
+      if (eff === "light") {
+        SSA.theme.grid = "rgba(20,30,60,0.10)";
+        SSA.theme.rulerBg = "rgba(255,255,255,0.94)";
+        SSA.theme.rulerFg = "#586179";
+        SSA.theme.rulerLine = "rgba(20,30,60,0.22)";
+      } else {
+        SSA.theme.grid = "rgba(255,255,255,0.06)";
+        SSA.theme.rulerBg = "rgba(20,24,33,0.94)";
+        SSA.theme.rulerFg = "#8b93a7";
+        SSA.theme.rulerLine = "rgba(255,255,255,0.22)";
+      }
+      SSA.theme.accent = "#4f8cff";
+      this.updateThemeBtn();
+      this.render();
+    },
+    updateThemeBtn: function () {
+      const b = this.el.themeBtn;
+      if (!b) return;
+      const pref = this.state.theme || "system";
+      const icon = pref === "light" ? "sun" : pref === "dark" ? "moon" : "auto";
+      b.innerHTML = svg(icon, 18);
+      b.title = "Tema: " + (pref === "system" ? "Sistem" : pref === "light" ? "Açık" : "Koyu");
+    },
+    cycleTheme: function () {
+      const order = ["system", "light", "dark"];
+      const i = order.indexOf(this.state.theme || "system");
+      this.state.theme = order[(i + 1) % order.length];
+      this.savePrefs();
+      this.applyTheme();
+      this.toast(
+        "Tema: " + (this.state.theme === "system" ? "Sistem tercihi" : this.state.theme === "light" ? "Açık" : "Koyu")
+      );
     },
     maybeShowIntro: function () {
       const prefs = SSA.Store.prefs();
@@ -822,6 +889,7 @@
           }
         }
         SSA.Render.drawPaneLabels(this.ctx, p, v, this.dpr);
+        if (SSA.view.ruler) SSA.Render.drawRulers(this.ctx, v, this.dpr);
       }
       this.updateStatus();
       this.updateEmpty();
@@ -847,6 +915,14 @@
         ctx.strokeStyle = "#4f8cff";
         ctx.lineWidth = 1.5 / v.scale;
         ctx.setLineDash([8 / v.scale, 6 / v.scale]);
+        ctx.strokeRect(pv.x, pv.y, pv.w, pv.h);
+        ctx.setLineDash([]);
+      } else if (pv.type === "marquee") {
+        ctx.fillStyle = "rgba(79,140,255,0.12)";
+        ctx.fillRect(pv.x, pv.y, pv.w, pv.h);
+        ctx.strokeStyle = "#4f8cff";
+        ctx.lineWidth = 1.2 / v.scale;
+        ctx.setLineDash([6 / v.scale, 4 / v.scale]);
         ctx.strokeRect(pv.x, pv.y, pv.w, pv.h);
         ctx.setLineDash([]);
       } else {
@@ -888,6 +964,7 @@
       const self = this;
       const p = this.state.project;
       this.updatePaneSwitch();
+      this.renderNotes();
       const list = this.el.layerList;
       const anns = this.activeAnns();
       list.innerHTML = "";
@@ -945,6 +1022,74 @@
           list.appendChild(row);
         })(anns[i]);
       }
+    },
+
+    /* ---------- notes (numbered steps) ---------- */
+    renderNotes: function () {
+      const p = this.state.project;
+      const block = this.el.notesBlock;
+      const list = this.el.notesList;
+      if (!p || !block || !list) return;
+      const rows = [];
+      const collect = function (arr, pane) {
+        for (let i = 0; i < arr.length; i++) {
+          if (arr[i].type === "number") rows.push({ a: arr[i], pane: pane });
+        }
+      };
+      collect(p.annotations, 1);
+      if (p.image2) collect(p.annotations2 || [], 2);
+      rows.sort(function (x, y) {
+        return (x.a.n || 0) - (y.a.n || 0);
+      });
+      block.hidden = rows.length === 0;
+      if (!rows.length) {
+        list.innerHTML = "";
+        return;
+      }
+      const self = this;
+      list.innerHTML = "";
+      rows.forEach(function (r) {
+        const row = document.createElement("div");
+        row.className = "note-row";
+        row.innerHTML =
+          '<button class="note-n" type="button" title="Bu adıma git">' +
+          r.a.n +
+          (r.pane === 2 ? "·2" : "") +
+          "</button>" +
+          '<input class="note-text" type="text" placeholder="Açıklama..." />';
+        row.querySelector(".note-n").addEventListener("click", function () {
+          self.focusAnn(r.a, r.pane);
+        });
+        const inp = row.querySelector(".note-text");
+        inp.value = r.a.note || "";
+        inp.addEventListener("input", function () {
+          r.a.note = this.value;
+          self.saveSoon();
+        });
+        inp.addEventListener("change", function () {
+          self.commitHistory();
+        });
+        list.appendChild(row);
+      });
+    },
+    focusAnn: function (a, pane) {
+      const p = this.state.project;
+      if (!p) return;
+      const o = this.paneOrigin(pane);
+      const b = SSA.geom.bbox(a);
+      const cx = o.x + b.x + b.w / 2;
+      const cy = o.y + b.y + b.h / 2;
+      const cw = this.canvas.width / this.dpr;
+      const ch = this.canvas.height / this.dpr;
+      let scale = Math.min(cw / 520, ch / 380);
+      scale = clamp(scale, 0.3, 4);
+      p.view.scale = scale;
+      p.view.ox = cw / 2 - cx * scale;
+      p.view.oy = ch / 2 - cy * scale;
+      this.state.activePane = pane;
+      this.updatePaneSwitch();
+      this.setSelection([a.id]);
+      this.render();
     },
 
     /* ---------- properties ---------- */
@@ -1262,6 +1407,9 @@
         e.stopPropagation();
         self.el.moreMenu.hidden = !self.el.moreMenu.hidden;
       });
+      this.el.themeBtn.addEventListener("click", function () {
+        self.cycleTheme();
+      });
       this.el.moreMenu.addEventListener("click", function (e) {
         const b = e.target.closest("button");
         if (!b) return;
@@ -1275,9 +1423,12 @@
           if (self.state.project.annotations.length && window.confirm("Tüm işaretlemeler silinsin mi?")) {
             self.clearAnnotations();
           }
-        } else if (act === "fit") self.fitView();
+        }         else if (act === "fit") self.fitView();
         else if (act === "actual") self.setZoom(1);
         else if (act === "crop-reset") self.fitView();
+        else if (act === "export-selection") self.exportSelection();
+        else if (act === "toggle-grid") self.toggleGrid();
+        else if (act === "toggle-ruler") self.toggleRuler();
       });
 
       const paneBtns = this.el.paneSwitch.querySelectorAll("button");
@@ -1688,6 +1839,45 @@
       }
       SSA.Export.downloadPNG(p, p.name);
       this.toast("PNG indiriliyor");
+    },
+    exportSelection: function () {
+      const sel = this.selectedAnns();
+      if (!sel.length) {
+        this.toast("Önce bir öğe seçin", "error");
+        return;
+      }
+      const o = this.paneOrigin(this.state.activePane);
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (let i = 0; i < sel.length; i++) {
+        const b = SSA.geom.bbox(sel[i]);
+        if (b.w === 0 && b.h === 0) continue;
+        minX = Math.min(minX, b.x);
+        minY = Math.min(minY, b.y);
+        maxX = Math.max(maxX, b.x + b.w);
+        maxY = Math.max(maxY, b.y + b.h);
+      }
+      if (!isFinite(minX)) {
+        this.toast("Seçili öğe dışa aktarılamıyor", "error");
+        return;
+      }
+      const rect = { x: minX + o.x, y: minY + o.y, w: maxX - minX, h: maxY - minY };
+      SSA.Export.downloadPNGRegion(this.state.project, rect, this.state.project.name);
+      this.toast("Seçili alan PNG indiriliyor");
+    },
+    toggleGrid: function () {
+      SSA.view.grid = !SSA.view.grid;
+      this.savePrefs();
+      this.render();
+      this.toast(SSA.view.grid ? "Izgara açık (" + SSA.view.gridSize + "px)" : "Izgara kapalı");
+    },
+    toggleRuler: function () {
+      SSA.view.ruler = !SSA.view.ruler;
+      this.savePrefs();
+      this.render();
+      this.toast(SSA.view.ruler ? "Cetvel açık" : "Cetvel kapalı");
     },
     copyPNG: function () {
       const self = this;
@@ -2118,6 +2308,8 @@
         return "Ok";
       case "line":
         return "Çizgi";
+      case "measure":
+        return "Ölçüm";
       case "freehand":
         return "Serbest çizim";
       case "strike":

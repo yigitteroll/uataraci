@@ -78,6 +78,12 @@ Gmail, **içinde `.js` bulunan `.zip`** dosyalarını güvenlik nedeniyle engell
 - **Boyutlandırma tüm öğelerde çalışır:** dikdörtgen/elips/vurgu/blur kenar-köşe tutamaçlarıyla; ok/çizgi uç noktalarından; metin/etiket, serbest çizim, çarpı/tik, pin ve numara ise **köşe tutamaçlarından oransal** büyütülüp küçültülür.
 
 ## Kolaylıklar
+- **Adımlar / Notlar:** Numaralı rozetler sağ panelde listelenir; her birine açıklama yazın. Rozete tıklayınca o adıma **zoomlanır**.
+- **Seçili alanı indir:** **⋯ → Seçili alanı PNG indir** (veya öğeye sağ tık) ile yalnızca seçili öğelerin bölgesini PNG olarak alın.
+- **Cetvel & Izgara:** **⋯** menüsünden açıp kapatın; piksel-hassas yerleştirme için.
+- **Ölçüm aracı:** İki nokta arasını sürükleyin; genişlik × yükseklik ve mesafeyi px olarak gösterir.
+- **Çoklu seçim:** Seç aracında boş alanda **Ctrl+sürükle** ile kutu çizin; kutuya giren tüm öğeler seçilir, birlikte taşınır/silinir.
+- **Tema:** Üst bardaki düğmeyle **Sistem / Açık / Koyu**; "Sistem" seçiliyken tarayıcı tercihini otomatik izler.
 - **Sağ tık:** öğede → *Çoğalt / Metni düzenle / Öne getir / Arkaya gönder / Sil*; boş alanda → *Panodan Yapıştır / Görsele sığdır / %100*.
 - **Geri Al bildirimi:** silme sonrası alttaki şeritten tek tıkla geri al.
 - **Durum çubuğu ipucu:** seçili aracın nasıl kullanılacağını gösterir.
