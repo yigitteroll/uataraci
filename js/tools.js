@@ -165,20 +165,17 @@
           return { ann: a, snap: SSA.util.clone(a), id: a.id };
         });
       } else {
-        if (ev.ctrlKey || ev.metaKey) {
-          session.mode = "marquee";
-          session.startImg = ip;
-          session.pane = pane;
-          session.marqueeAdd = ev.shiftKey;
-          App.state.preview = { type: "marquee", x: ip.x, y: ip.y, w: 0, h: 0 };
-          App.state.previewPane = pane;
-          canvas.style.cursor = "crosshair";
-          ev.preventDefault();
-          return;
-        }
+        // Boş alanda sürükleme = kutu ile çoklu seçim (Shift: seçime ekle).
+        // Görünümü kaydırmak için: Space+sürükle, orta tuş veya Kaydır aracı.
+        session.mode = "marquee";
+        session.startImg = ip;
+        session.pane = pane;
+        session.marqueeAdd = ev.shiftKey;
         if (!ev.shiftKey) App.setSelection([]);
+        App.state.preview = { type: "marquee", x: ip.x, y: ip.y, w: 0, h: 0 };
+        App.state.previewPane = pane;
+        canvas.style.cursor = "crosshair";
         App.render();
-        startPan(sp);
         ev.preventDefault();
         return;
       }
@@ -308,6 +305,26 @@
     }
   }
 
+  // Yeni öğe her zaman seçili gelir (renk/kalınlık hemen ona uygulanır).
+  // Araç varsayılan olarak aktif kalır; ayar açıksa Seç aracına geçilir.
+  function afterAdd(added) {
+    const App = SSA.App;
+    if (!added) return;
+    if (App.state.autoSelect) App.setTool("select");
+    App.setSelection([added.id]);
+  }
+
+  function hitAt(pane, ip) {
+    const App = SSA.App;
+    const anns = App.paneAnns(pane);
+    const tol = 6 / viewForPane(pane).scale;
+    for (let i = anns.length - 1; i >= 0; i--) {
+      if (anns[i].hidden) continue;
+      if (SSA.geom.hit(anns[i], ip, tol)) return anns[i];
+    }
+    return null;
+  }
+
   function onUp(ev) {
     const App = SSA.App;
     if (!App) return;
@@ -366,11 +383,16 @@
       } else if (BBOX_TOOLS[a.type]) {
         ok = a.w > 4 && a.h > 4;
       }
+      const startPt = session.startImg;
+      const pane = session.pane || App.state.activePane;
       if (ok) {
-        const added = App.addAnnotation(a);
-        if (App.state.autoSelect && added) {
+        afterAdd(App.addAnnotation(a));
+      } else if (startPt) {
+        // Çizim yerine tıklandıysa: altındaki öğeyi seç (taşımak için Seç aracına geçer)
+        const hit = hitAt(pane, startPt);
+        if (hit) {
           App.setTool("select");
-          App.setSelection([added.id]);
+          App.setSelection([hit.id]);
         }
       }
       reset();
@@ -405,11 +427,7 @@
       const tool = App.state.tool;
       reset();
       if (tool === "pin" || tool === "cross" || tool === "tick") {
-        const added = App.addAnnotation(SSA.makeAnn(tool, ip, App.state));
-        if (App.state.autoSelect && added) {
-          App.setTool("select");
-          App.setSelection([added.id]);
-        }
+        afterAdd(App.addAnnotation(SSA.makeAnn(tool, ip, App.state)));
       } else if (tool === "number") {
         App.addAnnotation(SSA.makeAnn("number", ip, App.state));
         App.state.project.numberSeed = (App.state.project.numberSeed || 1) + 1;
@@ -427,11 +445,7 @@
           a.text = res.text;
           a.fontSize = res.fontSize;
           a.bg = res.bg;
-          const added = App.addAnnotation(a);
-          if (App.state.autoSelect && added) {
-            App.setTool("select");
-            App.setSelection([added.id]);
-          }
+          afterAdd(App.addAnnotation(a));
         });
       }
       App.render();
@@ -476,16 +490,7 @@
     const pane = paneAt(world);
     if (App.state.activePane !== pane) App.setActivePane(pane);
     const ip = toLocal(world, pane);
-    const view = viewForPane(pane);
-    const anns = App.paneAnns(pane);
-    const tol = 6 / view.scale;
-    let hit = null;
-    for (let i = anns.length - 1; i >= 0; i--) {
-      if (SSA.geom.hit(anns[i], ip, tol)) {
-        hit = anns[i];
-        break;
-      }
-    }
+    const hit = hitAt(pane, ip);
     const items = [];
     if (hit) {
       App.setSelection([hit.id]);

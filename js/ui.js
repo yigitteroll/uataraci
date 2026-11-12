@@ -50,12 +50,12 @@
   /* ---------------- Tool definitions ---------------- */
   const TOOLS = [
     { id: "select", icon: "select", label: "Seç / Taşı", key: "V" },
-    { id: "pan", icon: "hand", label: "Kaydır", key: "" },
+    { id: "pan", icon: "hand", label: "Kaydır (veya Space+sürükle)", key: "" },
     { id: "crop", icon: "crop", label: "Kırp", key: "C" },
     { sep: true },
     { id: "arrow", icon: "arrow", label: "Ok", key: "A" },
     { id: "line", icon: "line", label: "Çizgi", key: "L" },
-    { id: "measure", icon: "ruler", label: "Ölçüm", key: "" },
+    { id: "measure", icon: "ruler", label: "Ölçüm", key: "U" },
     { id: "freehand", icon: "pen", label: "Serbest Çizim", key: "P" },
     { id: "strike", icon: "strike", label: "Üstünü Çiz", key: "S" },
     { id: "rect", icon: "rect", label: "Dikdörtgen", key: "R" },
@@ -162,7 +162,7 @@
       fontSize: 18,
       blurMode: "blur",
       blurStrength: 12,
-      autoSelect: true,
+      autoSelect: false,
       moveImage2: false,
       theme: "system",
       spaceDown: false,
@@ -269,7 +269,8 @@
       if (p.fontSize) s.fontSize = p.fontSize;
       if (p.blurMode) s.blurMode = p.blurMode;
       if (p.blurStrength) s.blurStrength = p.blurStrength;
-      if (typeof p.autoSelect === "boolean") s.autoSelect = p.autoSelect;
+      // v2: varsayılan "araç aktif kalır". Eski kayıtlı tercih (true) yok sayılır.
+      if (p.prefsVer >= 2 && typeof p.autoSelect === "boolean") s.autoSelect = p.autoSelect;
       if (p.theme) s.theme = p.theme;
       if (typeof p.grid === "boolean") SSA.view.grid = p.grid;
       if (typeof p.ruler === "boolean") SSA.view.ruler = p.ruler;
@@ -279,6 +280,8 @@
     savePrefs: function () {
       const s = this.state;
       SSA.Store.setPrefs({
+        prefsVer: 2,
+        introSeen: !!SSA.Store.prefs().introSeen,
         color: s.color,
         width: s.width,
         opacity: s.opacity,
@@ -376,6 +379,13 @@
       const el = this.el.toolbar;
       const self = this;
       el.innerHTML = "";
+      let tip = document.querySelector(".tool-tip");
+      if (!tip) {
+        tip = document.createElement("div");
+        tip.className = "tool-tip";
+        tip.hidden = true;
+        document.body.appendChild(tip);
+      }
       TOOLS.forEach(function (t) {
         if (t.sep) {
           const sep = document.createElement("div");
@@ -388,6 +398,19 @@
         b.className = "tool";
         b.dataset.tool = t.id;
         b.title = t.label + (t.key ? " (" + t.key + ")" : "");
+        b.dataset.tip = b.title;
+        b.removeAttribute("title"); // yerine anında görünen etiket
+        b.setAttribute("aria-label", t.label);
+        b.addEventListener("mouseenter", function () {
+          const r = b.getBoundingClientRect();
+          tip.textContent = b.dataset.tip;
+          tip.style.left = r.right + 8 + "px";
+          tip.style.top = r.top + r.height / 2 - 13 + "px";
+          tip.hidden = false;
+        });
+        b.addEventListener("mouseleave", function () {
+          tip.hidden = true;
+        });
         b.innerHTML = svg(t.icon, 20);
         b.addEventListener("click", function () {
           self.setTool(t.id);
@@ -705,7 +728,7 @@
         return;
       }
       const map = {
-        select: "<b>Seç</b> — tıkla & sürükle · boş alan = kaydır · Ctrl+sürükle = çoklu seç",
+        select: "<b>Seç</b> — öğeyi tıkla & sürükle · boş alanda sürükle = çoklu seç · Space+sürükle = kaydır",
         pan: "<b>Kaydır</b> — görünümü sürükleyin",
         crop: "<b>Kırp</b> — kesilecek alanı sürükleyin",
         arrow: "<b>Ok</b> — başlangıçtan bitişe sürükleyin",
@@ -820,7 +843,7 @@
         p.image = { src: snap.img.src, w: snap.img.w, h: snap.img.h };
         const img = new Image();
         img.onload = function () {
-          self.render();
+          self.fitView(); // geri alınan görselin boyutu farklı olabilir
         };
         img.src = p.image.src;
         p.imageEl = img;
@@ -1131,17 +1154,36 @@
         ["Y", "Tik"],
         ["G", "Pin"],
         ["N", "Numara"],
+        ["U", "Ölçüm"],
         ["Dbl", "Metin düzenle"],
         ["Space", "Kaydır"],
+        ["Esc", "Seçimi bırak"],
         ["Del", "Sil"],
-        ["⌘Z", "Geri"],
-        ["Ctrl+S", "PNG"]
+        ["Ctrl+Z", "Geri al"],
+        ["Ctrl+S", "Kaydet"],
+        ["Ctrl+⇧+S", "PNG indir"]
       ];
       el.innerHTML = items
         .map(function (it) {
           return '<div class="tip"><kbd>' + it[0] + "</kbd><span>" + it[1] + "</span></div>";
         })
         .join("");
+    },
+
+    syncMoreMenu: function () {
+      const m = this.el.moreMenu;
+      const p = this.state.project;
+      const has2 = !!(p && p.image2);
+      const set = function (act, on) {
+        const b = m.querySelector('[data-action="' + act + '"]');
+        if (b) b.classList.toggle("is-on", !!on);
+      };
+      set("toggle-grid", SSA.view.grid);
+      set("toggle-ruler", SSA.view.ruler);
+      const rm = m.querySelector('[data-action="remove-image2"]');
+      if (rm) rm.disabled = !has2;
+      const sel = m.querySelector('[data-action="export-selection"]');
+      if (sel) sel.disabled = !this.selectedAnns().length;
     },
 
     syncProps: function () {
@@ -1406,6 +1448,7 @@
       this.el.moreBtn.addEventListener("click", function (e) {
         e.stopPropagation();
         self.el.moreMenu.hidden = !self.el.moreMenu.hidden;
+        if (!self.el.moreMenu.hidden) self.syncMoreMenu();
       });
       this.el.themeBtn.addEventListener("click", function () {
         self.cycleTheme();
@@ -1423,9 +1466,8 @@
           if (self.state.project.annotations.length && window.confirm("Tüm işaretlemeler silinsin mi?")) {
             self.clearAnnotations();
           }
-        }         else if (act === "fit") self.fitView();
+        } else if (act === "fit") self.fitView();
         else if (act === "actual") self.setZoom(1);
-        else if (act === "crop-reset") self.fitView();
         else if (act === "export-selection") self.exportSelection();
         else if (act === "toggle-grid") self.toggleGrid();
         else if (act === "toggle-ruler") self.toggleRuler();
@@ -1629,6 +1671,8 @@
         if (!self.state.project) self.newProject();
         const proj = self.state.project;
         if (pane !== 2) pane = 1;
+        const hadImage = pane === 2 ? !!proj.image2 : !!proj.image;
+        const lostAnns = (pane === 2 ? proj.annotations2 || [] : proj.annotations || []).length;
         if (pane === 2) {
           proj.image2 = { src: src, w: img.naturalWidth, h: img.naturalHeight };
           proj.annotations2 = [];
@@ -1639,7 +1683,7 @@
         }
         if (name) {
           const base = name.replace(/\.[a-z0-9]+$/i, "");
-          if (/^UAT - /.test(proj.name) || !proj.name) proj.name = base;
+          if (!hadImage && pane !== 2 && (/^UAT - /.test(proj.name) || !proj.name)) proj.name = base;
           self.el.projectName.value = proj.name;
         }
         const copy = new Image();
@@ -1661,21 +1705,28 @@
           }
           self.state.preview = null;
           self.state.previewPane = self.state.activePane;
-          SSA.History.reset(self.snapshot());
+          // Görsel değiştirildiyse geçmişi silme; eski görsel + işaretlemeler Geri Al ile döner.
+          if (hadImage && SSA.History.stack.length) self.commitHistory();
+          else SSA.History.reset(self.snapshot());
           self.updateHistoryButtons();
           self.updatePaneSwitch();
           self.updatePropVisibility();
           self.syncProps();
           self.updateEmpty();
+          if (!self.el.introBar.hidden) self.dismissIntro();
           self.fitView();
           self.renderLayers();
           self.render();
           self.saveSoon();
-          self.toast(
-            "Görsel yüklendi · " +
-              (pane === 2 ? proj.image2.w + "×" + proj.image2.h : proj.image.w + "×" + proj.image.h),
-            "ok"
-          );
+          if (hadImage && lostAnns) {
+            self.showUndo("Görsel değiştirildi · " + lostAnns + " işaretleme kaldırıldı");
+          } else {
+            self.toast(
+              "Görsel yüklendi · " +
+                (pane === 2 ? proj.image2.w + "×" + proj.image2.h : proj.image.w + "×" + proj.image.h),
+              "ok"
+            );
+          }
         };
         copy.onerror = function () {
           self.toast("Görsel işlenemedi", "error");
@@ -1821,7 +1872,7 @@
         self.renderLayers();
         self.render();
         self.saveSoon();
-        self.toast("Görsel kırpıldı · " + w + "×" + h);
+        self.showUndo("Görsel kırpıldı · " + w + "×" + h);
       };
       img.src = src;
 
@@ -2041,7 +2092,13 @@
           }
           if (k === "s") {
             e.preventDefault();
-            self.exportPNG();
+            // Ctrl+S = projeyi kaydet (zaten otomatik), Ctrl+Shift+S = PNG indir
+            if (e.shiftKey) {
+              self.exportPNG();
+            } else if (self.state.project) {
+              self.flushSave();
+              self.toast("Kaydedildi · PNG için Ctrl+Shift+S", "ok");
+            }
             return;
           }
           if (k === "a") {
@@ -2070,9 +2127,11 @@
         }
         if (e.key === "Escape") {
           self.closeContextMenu();
+          self.el.moreMenu.hidden = true;
           self.state.preview = null;
-          self.setSelection([]);
-          self.setTool("select");
+          // 1. basış: seçimi bırak (araç korunur) · 2. basış: Seç aracına dön
+          if (self.selectedAnns().length) self.setSelection([]);
+          else self.setTool("select");
           self.render();
           return;
         }

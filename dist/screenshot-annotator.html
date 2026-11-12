@@ -673,6 +673,52 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
   .panel { display: none; }
 }
 
+/* ---------- Kullanılabilirlik düzeltmeleri ---------- */
+/* Açık temada ana buton rengi, genel .btn kuralı tarafından eziliyordu */
+html[data-theme="light"] .btn.primary,
+html[data-theme="light"] .btn.primary:hover {
+  background: linear-gradient(135deg, var(--accent), #3f7bf0);
+  border-color: transparent;
+  color: #fff;
+}
+/* Beyaz / açık renk örnekleri açık zeminde görünsün */
+html[data-theme="light"] .swatch { border-color: rgba(20, 30, 60, .28); }
+
+/* Menü grup başlıkları ve aç/kapa işareti */
+.menu-label {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); padding: 8px 11px 4px;
+}
+.menu-label:not(:first-child) { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; }
+.menu button { display: flex; align-items: center; gap: 8px; }
+.menu button kbd { margin-left: auto; font-size: 11px; color: var(--muted); font-family: inherit; }
+.menu button:disabled { opacity: .4; cursor: not-allowed; background: transparent; }
+.menu button.danger { color: #ff6b6b; }
+.menu-check::before {
+  content: ""; width: 14px; height: 14px; border-radius: 4px; flex: none;
+  border: 1.5px solid var(--muted);
+}
+.menu-check.is-on::before {
+  border-color: var(--accent);
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/11px no-repeat;
+}
+
+/* Araç çubuğu: anında görünen etiket */
+.tool-tip {
+  position: fixed; z-index: 60; pointer-events: none;
+  background: var(--bg-3); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 5px 9px; font-size: 12px; white-space: nowrap;
+  box-shadow: var(--shadow);
+}
+.tool-tip[hidden] { display: none; }
+
+/* Orta genişlikte üst bar tek satırda kalsın: ikincil butonlar yalnız ikon */
+@media (max-width: 1240px) {
+  .topbar-actions .btn:not(.primary) span { display: none; }
+  .topbar-actions .btn:not(.primary) { padding: 8px; }
+}
+
 </style>
 </head>
 <body>
@@ -725,7 +771,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
 
         <span class="divider"></span>
 
-        <button id="exportBtn" class="btn primary" type="button" title="PNG İndir (Ctrl+S)">
+        <button id="exportBtn" class="btn primary" type="button" title="PNG İndir (Ctrl+Shift+S)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
           <span>PNG İndir</span>
         </button>
@@ -743,17 +789,18 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
           </button>
           <div id="moreMenu" class="menu" hidden>
+            <div class="menu-label">Dosya</div>
             <button data-action="export-json" type="button">JSON olarak kaydet</button>
             <button data-action="import-json" type="button">JSON yükle</button>
-            <button data-action="second-image" type="button">2. görseli ekle / değiştir</button>
-            <button data-action="remove-image2" type="button">2. görseli kaldır</button>
-            <button data-action="clear-ann" type="button">Tüm işaretlemeleri temizle</button>
             <button data-action="export-selection" type="button">Seçili alanı PNG indir</button>
-            <button data-action="fit" type="button">Görsele sığdır</button>
+            <div class="menu-label">Görünüm</div>
+            <button data-action="fit" type="button">Görsele sığdır <kbd>Ctrl+0</kbd></button>
             <button data-action="actual" type="button">%100 boyut</button>
-            <button data-action="crop-reset" type="button">Tüm görseli göster</button>
-            <button data-action="toggle-grid" type="button">Izgarayı göster/gizle</button>
-            <button data-action="toggle-ruler" type="button">Cetveli göster/gizle</button>
+            <button data-action="toggle-grid" type="button" class="menu-check">Izgara</button>
+            <button data-action="toggle-ruler" type="button" class="menu-check">Cetvel</button>
+            <div class="menu-label">Düzenle</div>
+            <button data-action="remove-image2" type="button">2. görseli kaldır</button>
+            <button data-action="clear-ann" type="button" class="danger">Tüm işaretlemeleri temizle</button>
           </div>
         </div>
       </div>
@@ -859,9 +906,9 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
           </div>
 
           <div class="prop-row">
-            <label class="check" title="Kapalıysa araç aktif kalır, arka arkaya çizim yapabilirsiniz">
-              <input type="checkbox" id="autoSelect" checked />
-              <span>Çizim sonrası Seç aracı</span>
+            <label class="check" title="Kapalıyken araç aktif kalır, arka arkaya çizim yapabilirsiniz. Taşımak için öğeye tıklayın veya V'ye basın.">
+              <input type="checkbox" id="autoSelect" />
+              <span>Çizdikten sonra Seç aracına geç</span>
             </label>
           </div>
 
@@ -2829,20 +2876,17 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
           return { ann: a, snap: SSA.util.clone(a), id: a.id };
         });
       } else {
-        if (ev.ctrlKey || ev.metaKey) {
-          session.mode = "marquee";
-          session.startImg = ip;
-          session.pane = pane;
-          session.marqueeAdd = ev.shiftKey;
-          App.state.preview = { type: "marquee", x: ip.x, y: ip.y, w: 0, h: 0 };
-          App.state.previewPane = pane;
-          canvas.style.cursor = "crosshair";
-          ev.preventDefault();
-          return;
-        }
+        // Boş alanda sürükleme = kutu ile çoklu seçim (Shift: seçime ekle).
+        // Görünümü kaydırmak için: Space+sürükle, orta tuş veya Kaydır aracı.
+        session.mode = "marquee";
+        session.startImg = ip;
+        session.pane = pane;
+        session.marqueeAdd = ev.shiftKey;
         if (!ev.shiftKey) App.setSelection([]);
+        App.state.preview = { type: "marquee", x: ip.x, y: ip.y, w: 0, h: 0 };
+        App.state.previewPane = pane;
+        canvas.style.cursor = "crosshair";
         App.render();
-        startPan(sp);
         ev.preventDefault();
         return;
       }
@@ -2972,6 +3016,26 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
     }
   }
 
+  // Yeni öğe her zaman seçili gelir (renk/kalınlık hemen ona uygulanır).
+  // Araç varsayılan olarak aktif kalır; ayar açıksa Seç aracına geçilir.
+  function afterAdd(added) {
+    const App = SSA.App;
+    if (!added) return;
+    if (App.state.autoSelect) App.setTool("select");
+    App.setSelection([added.id]);
+  }
+
+  function hitAt(pane, ip) {
+    const App = SSA.App;
+    const anns = App.paneAnns(pane);
+    const tol = 6 / viewForPane(pane).scale;
+    for (let i = anns.length - 1; i >= 0; i--) {
+      if (anns[i].hidden) continue;
+      if (SSA.geom.hit(anns[i], ip, tol)) return anns[i];
+    }
+    return null;
+  }
+
   function onUp(ev) {
     const App = SSA.App;
     if (!App) return;
@@ -3030,11 +3094,16 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
       } else if (BBOX_TOOLS[a.type]) {
         ok = a.w > 4 && a.h > 4;
       }
+      const startPt = session.startImg;
+      const pane = session.pane || App.state.activePane;
       if (ok) {
-        const added = App.addAnnotation(a);
-        if (App.state.autoSelect && added) {
+        afterAdd(App.addAnnotation(a));
+      } else if (startPt) {
+        // Çizim yerine tıklandıysa: altındaki öğeyi seç (taşımak için Seç aracına geçer)
+        const hit = hitAt(pane, startPt);
+        if (hit) {
           App.setTool("select");
-          App.setSelection([added.id]);
+          App.setSelection([hit.id]);
         }
       }
       reset();
@@ -3069,11 +3138,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
       const tool = App.state.tool;
       reset();
       if (tool === "pin" || tool === "cross" || tool === "tick") {
-        const added = App.addAnnotation(SSA.makeAnn(tool, ip, App.state));
-        if (App.state.autoSelect && added) {
-          App.setTool("select");
-          App.setSelection([added.id]);
-        }
+        afterAdd(App.addAnnotation(SSA.makeAnn(tool, ip, App.state)));
       } else if (tool === "number") {
         App.addAnnotation(SSA.makeAnn("number", ip, App.state));
         App.state.project.numberSeed = (App.state.project.numberSeed || 1) + 1;
@@ -3091,11 +3156,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
           a.text = res.text;
           a.fontSize = res.fontSize;
           a.bg = res.bg;
-          const added = App.addAnnotation(a);
-          if (App.state.autoSelect && added) {
-            App.setTool("select");
-            App.setSelection([added.id]);
-          }
+          afterAdd(App.addAnnotation(a));
         });
       }
       App.render();
@@ -3140,16 +3201,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
     const pane = paneAt(world);
     if (App.state.activePane !== pane) App.setActivePane(pane);
     const ip = toLocal(world, pane);
-    const view = viewForPane(pane);
-    const anns = App.paneAnns(pane);
-    const tol = 6 / view.scale;
-    let hit = null;
-    for (let i = anns.length - 1; i >= 0; i--) {
-      if (SSA.geom.hit(anns[i], ip, tol)) {
-        hit = anns[i];
-        break;
-      }
-    }
+    const hit = hitAt(pane, ip);
     const items = [];
     if (hit) {
       App.setSelection([hit.id]);
@@ -3307,12 +3359,12 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
   /* ---------------- Tool definitions ---------------- */
   const TOOLS = [
     { id: "select", icon: "select", label: "Seç / Taşı", key: "V" },
-    { id: "pan", icon: "hand", label: "Kaydır", key: "" },
+    { id: "pan", icon: "hand", label: "Kaydır (veya Space+sürükle)", key: "" },
     { id: "crop", icon: "crop", label: "Kırp", key: "C" },
     { sep: true },
     { id: "arrow", icon: "arrow", label: "Ok", key: "A" },
     { id: "line", icon: "line", label: "Çizgi", key: "L" },
-    { id: "measure", icon: "ruler", label: "Ölçüm", key: "" },
+    { id: "measure", icon: "ruler", label: "Ölçüm", key: "U" },
     { id: "freehand", icon: "pen", label: "Serbest Çizim", key: "P" },
     { id: "strike", icon: "strike", label: "Üstünü Çiz", key: "S" },
     { id: "rect", icon: "rect", label: "Dikdörtgen", key: "R" },
@@ -3419,7 +3471,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
       fontSize: 18,
       blurMode: "blur",
       blurStrength: 12,
-      autoSelect: true,
+      autoSelect: false,
       moveImage2: false,
       theme: "system",
       spaceDown: false,
@@ -3526,7 +3578,8 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
       if (p.fontSize) s.fontSize = p.fontSize;
       if (p.blurMode) s.blurMode = p.blurMode;
       if (p.blurStrength) s.blurStrength = p.blurStrength;
-      if (typeof p.autoSelect === "boolean") s.autoSelect = p.autoSelect;
+      // v2: varsayılan "araç aktif kalır". Eski kayıtlı tercih (true) yok sayılır.
+      if (p.prefsVer >= 2 && typeof p.autoSelect === "boolean") s.autoSelect = p.autoSelect;
       if (p.theme) s.theme = p.theme;
       if (typeof p.grid === "boolean") SSA.view.grid = p.grid;
       if (typeof p.ruler === "boolean") SSA.view.ruler = p.ruler;
@@ -3536,6 +3589,8 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
     savePrefs: function () {
       const s = this.state;
       SSA.Store.setPrefs({
+        prefsVer: 2,
+        introSeen: !!SSA.Store.prefs().introSeen,
         color: s.color,
         width: s.width,
         opacity: s.opacity,
@@ -3633,6 +3688,13 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
       const el = this.el.toolbar;
       const self = this;
       el.innerHTML = "";
+      let tip = document.querySelector(".tool-tip");
+      if (!tip) {
+        tip = document.createElement("div");
+        tip.className = "tool-tip";
+        tip.hidden = true;
+        document.body.appendChild(tip);
+      }
       TOOLS.forEach(function (t) {
         if (t.sep) {
           const sep = document.createElement("div");
@@ -3645,6 +3707,19 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
         b.className = "tool";
         b.dataset.tool = t.id;
         b.title = t.label + (t.key ? " (" + t.key + ")" : "");
+        b.dataset.tip = b.title;
+        b.removeAttribute("title"); // yerine anında görünen etiket
+        b.setAttribute("aria-label", t.label);
+        b.addEventListener("mouseenter", function () {
+          const r = b.getBoundingClientRect();
+          tip.textContent = b.dataset.tip;
+          tip.style.left = r.right + 8 + "px";
+          tip.style.top = r.top + r.height / 2 - 13 + "px";
+          tip.hidden = false;
+        });
+        b.addEventListener("mouseleave", function () {
+          tip.hidden = true;
+        });
         b.innerHTML = svg(t.icon, 20);
         b.addEventListener("click", function () {
           self.setTool(t.id);
@@ -3962,7 +4037,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
         return;
       }
       const map = {
-        select: "<b>Seç</b> — tıkla & sürükle · boş alan = kaydır · Ctrl+sürükle = çoklu seç",
+        select: "<b>Seç</b> — öğeyi tıkla & sürükle · boş alanda sürükle = çoklu seç · Space+sürükle = kaydır",
         pan: "<b>Kaydır</b> — görünümü sürükleyin",
         crop: "<b>Kırp</b> — kesilecek alanı sürükleyin",
         arrow: "<b>Ok</b> — başlangıçtan bitişe sürükleyin",
@@ -4077,7 +4152,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
         p.image = { src: snap.img.src, w: snap.img.w, h: snap.img.h };
         const img = new Image();
         img.onload = function () {
-          self.render();
+          self.fitView(); // geri alınan görselin boyutu farklı olabilir
         };
         img.src = p.image.src;
         p.imageEl = img;
@@ -4388,17 +4463,36 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
         ["Y", "Tik"],
         ["G", "Pin"],
         ["N", "Numara"],
+        ["U", "Ölçüm"],
         ["Dbl", "Metin düzenle"],
         ["Space", "Kaydır"],
+        ["Esc", "Seçimi bırak"],
         ["Del", "Sil"],
-        ["⌘Z", "Geri"],
-        ["Ctrl+S", "PNG"]
+        ["Ctrl+Z", "Geri al"],
+        ["Ctrl+S", "Kaydet"],
+        ["Ctrl+⇧+S", "PNG indir"]
       ];
       el.innerHTML = items
         .map(function (it) {
           return '<div class="tip"><kbd>' + it[0] + "</kbd><span>" + it[1] + "</span></div>";
         })
         .join("");
+    },
+
+    syncMoreMenu: function () {
+      const m = this.el.moreMenu;
+      const p = this.state.project;
+      const has2 = !!(p && p.image2);
+      const set = function (act, on) {
+        const b = m.querySelector('[data-action="' + act + '"]');
+        if (b) b.classList.toggle("is-on", !!on);
+      };
+      set("toggle-grid", SSA.view.grid);
+      set("toggle-ruler", SSA.view.ruler);
+      const rm = m.querySelector('[data-action="remove-image2"]');
+      if (rm) rm.disabled = !has2;
+      const sel = m.querySelector('[data-action="export-selection"]');
+      if (sel) sel.disabled = !this.selectedAnns().length;
     },
 
     syncProps: function () {
@@ -4663,6 +4757,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
       this.el.moreBtn.addEventListener("click", function (e) {
         e.stopPropagation();
         self.el.moreMenu.hidden = !self.el.moreMenu.hidden;
+        if (!self.el.moreMenu.hidden) self.syncMoreMenu();
       });
       this.el.themeBtn.addEventListener("click", function () {
         self.cycleTheme();
@@ -4680,9 +4775,8 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
           if (self.state.project.annotations.length && window.confirm("Tüm işaretlemeler silinsin mi?")) {
             self.clearAnnotations();
           }
-        }         else if (act === "fit") self.fitView();
+        } else if (act === "fit") self.fitView();
         else if (act === "actual") self.setZoom(1);
-        else if (act === "crop-reset") self.fitView();
         else if (act === "export-selection") self.exportSelection();
         else if (act === "toggle-grid") self.toggleGrid();
         else if (act === "toggle-ruler") self.toggleRuler();
@@ -4886,6 +4980,8 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
         if (!self.state.project) self.newProject();
         const proj = self.state.project;
         if (pane !== 2) pane = 1;
+        const hadImage = pane === 2 ? !!proj.image2 : !!proj.image;
+        const lostAnns = (pane === 2 ? proj.annotations2 || [] : proj.annotations || []).length;
         if (pane === 2) {
           proj.image2 = { src: src, w: img.naturalWidth, h: img.naturalHeight };
           proj.annotations2 = [];
@@ -4896,7 +4992,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
         }
         if (name) {
           const base = name.replace(/\.[a-z0-9]+$/i, "");
-          if (/^UAT - /.test(proj.name) || !proj.name) proj.name = base;
+          if (!hadImage && pane !== 2 && (/^UAT - /.test(proj.name) || !proj.name)) proj.name = base;
           self.el.projectName.value = proj.name;
         }
         const copy = new Image();
@@ -4918,21 +5014,28 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
           }
           self.state.preview = null;
           self.state.previewPane = self.state.activePane;
-          SSA.History.reset(self.snapshot());
+          // Görsel değiştirildiyse geçmişi silme; eski görsel + işaretlemeler Geri Al ile döner.
+          if (hadImage && SSA.History.stack.length) self.commitHistory();
+          else SSA.History.reset(self.snapshot());
           self.updateHistoryButtons();
           self.updatePaneSwitch();
           self.updatePropVisibility();
           self.syncProps();
           self.updateEmpty();
+          if (!self.el.introBar.hidden) self.dismissIntro();
           self.fitView();
           self.renderLayers();
           self.render();
           self.saveSoon();
-          self.toast(
-            "Görsel yüklendi · " +
-              (pane === 2 ? proj.image2.w + "×" + proj.image2.h : proj.image.w + "×" + proj.image.h),
-            "ok"
-          );
+          if (hadImage && lostAnns) {
+            self.showUndo("Görsel değiştirildi · " + lostAnns + " işaretleme kaldırıldı");
+          } else {
+            self.toast(
+              "Görsel yüklendi · " +
+                (pane === 2 ? proj.image2.w + "×" + proj.image2.h : proj.image.w + "×" + proj.image.h),
+              "ok"
+            );
+          }
         };
         copy.onerror = function () {
           self.toast("Görsel işlenemedi", "error");
@@ -5078,7 +5181,7 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
         self.renderLayers();
         self.render();
         self.saveSoon();
-        self.toast("Görsel kırpıldı · " + w + "×" + h);
+        self.showUndo("Görsel kırpıldı · " + w + "×" + h);
       };
       img.src = src;
 
@@ -5298,7 +5401,13 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
           }
           if (k === "s") {
             e.preventDefault();
-            self.exportPNG();
+            // Ctrl+S = projeyi kaydet (zaten otomatik), Ctrl+Shift+S = PNG indir
+            if (e.shiftKey) {
+              self.exportPNG();
+            } else if (self.state.project) {
+              self.flushSave();
+              self.toast("Kaydedildi · PNG için Ctrl+Shift+S", "ok");
+            }
             return;
           }
           if (k === "a") {
@@ -5327,9 +5436,11 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
         }
         if (e.key === "Escape") {
           self.closeContextMenu();
+          self.el.moreMenu.hidden = true;
           self.state.preview = null;
-          self.setSelection([]);
-          self.setTool("select");
+          // 1. basış: seçimi bırak (araç korunur) · 2. basış: Seç aracına dön
+          if (self.selectedAnns().length) self.setSelection([]);
+          else self.setTool("select");
           self.render();
           return;
         }

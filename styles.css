@@ -661,3 +661,49 @@ html[data-theme="light"] .brand-sub { color: var(--muted); }
   .body { grid-template-columns: 52px 1fr; }
   .panel { display: none; }
 }
+
+/* ---------- Kullanılabilirlik düzeltmeleri ---------- */
+/* Açık temada ana buton rengi, genel .btn kuralı tarafından eziliyordu */
+html[data-theme="light"] .btn.primary,
+html[data-theme="light"] .btn.primary:hover {
+  background: linear-gradient(135deg, var(--accent), #3f7bf0);
+  border-color: transparent;
+  color: #fff;
+}
+/* Beyaz / açık renk örnekleri açık zeminde görünsün */
+html[data-theme="light"] .swatch { border-color: rgba(20, 30, 60, .28); }
+
+/* Menü grup başlıkları ve aç/kapa işareti */
+.menu-label {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); padding: 8px 11px 4px;
+}
+.menu-label:not(:first-child) { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 10px; }
+.menu button { display: flex; align-items: center; gap: 8px; }
+.menu button kbd { margin-left: auto; font-size: 11px; color: var(--muted); font-family: inherit; }
+.menu button:disabled { opacity: .4; cursor: not-allowed; background: transparent; }
+.menu button.danger { color: #ff6b6b; }
+.menu-check::before {
+  content: ""; width: 14px; height: 14px; border-radius: 4px; flex: none;
+  border: 1.5px solid var(--muted);
+}
+.menu-check.is-on::before {
+  border-color: var(--accent);
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/11px no-repeat;
+}
+
+/* Araç çubuğu: anında görünen etiket */
+.tool-tip {
+  position: fixed; z-index: 60; pointer-events: none;
+  background: var(--bg-3); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 5px 9px; font-size: 12px; white-space: nowrap;
+  box-shadow: var(--shadow);
+}
+.tool-tip[hidden] { display: none; }
+
+/* Orta genişlikte üst bar tek satırda kalsın: ikincil butonlar yalnız ikon */
+@media (max-width: 1240px) {
+  .topbar-actions .btn:not(.primary) span { display: none; }
+  .topbar-actions .btn:not(.primary) { padding: 8px; }
+}

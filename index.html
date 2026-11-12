@@ -60,7 +60,7 @@
 
         <span class="divider"></span>
 
-        <button id="exportBtn" class="btn primary" type="button" title="PNG İndir (Ctrl+S)">
+        <button id="exportBtn" class="btn primary" type="button" title="PNG İndir (Ctrl+Shift+S)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
           <span>PNG İndir</span>
         </button>
@@ -78,17 +78,18 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
           </button>
           <div id="moreMenu" class="menu" hidden>
+            <div class="menu-label">Dosya</div>
             <button data-action="export-json" type="button">JSON olarak kaydet</button>
             <button data-action="import-json" type="button">JSON yükle</button>
-            <button data-action="second-image" type="button">2. görseli ekle / değiştir</button>
-            <button data-action="remove-image2" type="button">2. görseli kaldır</button>
-            <button data-action="clear-ann" type="button">Tüm işaretlemeleri temizle</button>
             <button data-action="export-selection" type="button">Seçili alanı PNG indir</button>
-            <button data-action="fit" type="button">Görsele sığdır</button>
+            <div class="menu-label">Görünüm</div>
+            <button data-action="fit" type="button">Görsele sığdır <kbd>Ctrl+0</kbd></button>
             <button data-action="actual" type="button">%100 boyut</button>
-            <button data-action="crop-reset" type="button">Tüm görseli göster</button>
-            <button data-action="toggle-grid" type="button">Izgarayı göster/gizle</button>
-            <button data-action="toggle-ruler" type="button">Cetveli göster/gizle</button>
+            <button data-action="toggle-grid" type="button" class="menu-check">Izgara</button>
+            <button data-action="toggle-ruler" type="button" class="menu-check">Cetvel</button>
+            <div class="menu-label">Düzenle</div>
+            <button data-action="remove-image2" type="button">2. görseli kaldır</button>
+            <button data-action="clear-ann" type="button" class="danger">Tüm işaretlemeleri temizle</button>
           </div>
         </div>
       </div>
@@ -194,9 +195,9 @@
           </div>
 
           <div class="prop-row">
-            <label class="check" title="Kapalıysa araç aktif kalır, arka arkaya çizim yapabilirsiniz">
-              <input type="checkbox" id="autoSelect" checked />
-              <span>Çizim sonrası Seç aracı</span>
+            <label class="check" title="Kapalıyken araç aktif kalır, arka arkaya çizim yapabilirsiniz. Taşımak için öğeye tıklayın veya V'ye basın.">
+              <input type="checkbox" id="autoSelect" />
+              <span>Çizdikten sonra Seç aracına geç</span>
             </label>
           </div>
 

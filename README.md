@@ -59,6 +59,7 @@ Gmail, **içinde `.js` bulunan `.zip`** dosyalarını güvenlik nedeniyle engell
 | Y | Tik | Yeşil ✓ rozeti (doğru/geçti) |
 | G | Pin | Konum iğnesi |
 | N | Numara | 1, 2, 3… otomatik artan rozet |
+| U | Ölçüm | İki nokta arası px ölçüsü |
 
 ### Metin düzenleme
 - **Yerleştirirken:** metin, yazı boyutu ve arka plan (Yok / Renkli / Koyu / Açık) seçilir.
@@ -68,12 +69,12 @@ Gmail, **içinde `.js` bulunan `.zip`** dosyalarını güvenlik nedeniyle engell
 ## Kısayollar
 - `Ctrl+Z` geri al, `Ctrl+Y` / `Ctrl+Shift+Z` ileri al
 - `Delete` seçiliyi sil, `Ctrl+A` tümünü seç
-- `Ctrl+S` PNG indir, `[` `]` çizgi kalınlığı
-- Tekerlek ile yakınlaştır; **boş alana sol tuşla sürükle**, **Kaydır (el) aracı**, **Space+sürükle** veya **orta tuş** ile gezin
-- `Esc` seçimi bırak
+- `Ctrl+S` kaydet (otomatik kayıt zaten açık), `Ctrl+Shift+S` PNG indir, `[` `]` çizgi kalınlığı
+- Tekerlek ile yakınlaştır; **Space+sürükle**, **orta tuş** veya **Kaydır (el) aracı** ile gezin
+- `Esc` seçimi bırakır; seçim yoksa Seç aracına döner
 
 ## Taşıma / düzenleme
-- Çizdikten sonra araç otomatik olarak **Seç / Taşı**'ya döner ve yeni öğe seçili gelir; doğrudan sürükleyip taşıyabilir ya da köşe tutamaçlarından boyutlandırabilirsiniz. Bu davranışı sağ paneldeki **"Çizim sonrası Seç aracı"** kutusundan kapatabilirsiniz (arka arkaya çizim için).
+- Çizdikten sonra **araç aktif kalır**, arka arkaya çizebilirsiniz; yeni öğe seçili gelir, renk/kalınlık hemen ona uygulanır. Taşımak için öğeye tıklayın (Seç aracına geçer) veya `V` / `Esc`. Eski davranış için sağ paneldeki **"Çizdikten sonra Seç aracına geç"** kutusunu açın.
 - Herhangi bir öğeyi taşımak için **V** ile Seç aracına geçip öğenin üzerine tıklayıp sürükleyin.
 - **Boyutlandırma tüm öğelerde çalışır:** dikdörtgen/elips/vurgu/blur kenar-köşe tutamaçlarıyla; ok/çizgi uç noktalarından; metin/etiket, serbest çizim, çarpı/tik, pin ve numara ise **köşe tutamaçlarından oransal** büyütülüp küçültülür.
 
@@ -82,10 +83,10 @@ Gmail, **içinde `.js` bulunan `.zip`** dosyalarını güvenlik nedeniyle engell
 - **Seçili alanı indir:** **⋯ → Seçili alanı PNG indir** (veya öğeye sağ tık) ile yalnızca seçili öğelerin bölgesini PNG olarak alın.
 - **Cetvel & Izgara:** **⋯** menüsünden açıp kapatın; piksel-hassas yerleştirme için.
 - **Ölçüm aracı:** İki nokta arasını sürükleyin; genişlik × yükseklik ve mesafeyi px olarak gösterir.
-- **Çoklu seçim:** Seç aracında boş alanda **Ctrl+sürükle** ile kutu çizin; kutuya giren tüm öğeler seçilir, birlikte taşınır/silinir.
+- **Çoklu seçim:** Seç aracında boş alanda **sürükleyerek** kutu çizin (Shift ile mevcut seçime ekler); kutuya giren tüm öğeler seçilir, birlikte taşınır/silinir.
 - **Tema:** Üst bardaki düğmeyle **Sistem / Açık / Koyu**; "Sistem" seçiliyken tarayıcı tercihini otomatik izler.
 - **Sağ tık:** öğede → *Çoğalt / Metni düzenle / Öne getir / Arkaya gönder / Sil*; boş alanda → *Panodan Yapıştır / Görsele sığdır / %100*.
-- **Geri Al bildirimi:** silme sonrası alttaki şeritten tek tıkla geri al.
+- **Geri Al bildirimi:** silme, kırpma ve görsel değiştirme sonrası alttaki şeritten tek tıkla geri al. Yeni görsel yapıştırmak işaretlemeleri kalıcı olarak silmez; `Ctrl+Z` ile eski görsel ve işaretlemeler geri gelir.
 - **Durum çubuğu ipucu:** seçili aracın nasıl kullanılacağını gösterir.
 - **Otomatik dosya adı:** `proje-yyyymmdd-hhmmss.png`.
 - **İlk kullanım şeridi:** Görsel al → İşaretle → Paylaş.
