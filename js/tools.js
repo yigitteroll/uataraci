@@ -46,6 +46,7 @@
     session.current = null;
     session.snapshots = null;
     session.handle = null;
+    session.grabOff = null;
     session.ann = null;
     session.cropRect = null;
     session.changed = false;
@@ -133,6 +134,9 @@
           session.mode = "resize";
           session.ann = sel[0];
           session.handle = h;
+          // Tutamaç ile imleç arasındaki farkı koru: ilk harekette zıplama olmasın
+          const hp = SSA.geom.handlePoint(sel[0], h);
+          session.grabOff = { x: hp.x - ip.x, y: hp.y - ip.y };
           session.changed = false;
           session.snapshots = [{ ann: sel[0], snap: SSA.util.clone(sel[0]), id: sel[0].id }];
           ev.preventDefault();
@@ -289,7 +293,8 @@
     if (session.mode === "resize" && session.ann) {
       const item = session.snapshots[0];
       Object.assign(session.ann, SSA.util.clone(item.snap));
-      SSA.geom.resize(session.ann, session.handle, ip);
+      const off = session.grabOff || { x: 0, y: 0 };
+      SSA.geom.resize(session.ann, session.handle, { x: ip.x + off.x, y: ip.y + off.y });
       session.changed = true;
       App.render();
       return;

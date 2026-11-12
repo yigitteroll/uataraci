@@ -14,6 +14,7 @@
   const LINE_TYPES = { arrow: 1, line: 1, measure: 1 };
   const PATH_TYPES = { freehand: 1, strike: 1 };
   const SCALE_TYPES = { text: 1, label: 1, freehand: 1, strike: 1, cross: 1, tick: 1, pin: 1, number: 1 };
+  const HANDLE_PAD = 7; // ekran px
   const RESIZABLE = {
     rect: 1,
     ellipse: 1,
@@ -47,6 +48,7 @@
           return { x: a.x, y: a.y, w: a.w, h: a.h };
         case "arrow":
         case "line":
+        case "measure":
           return {
             x: Math.min(a.x1, a.x2),
             y: Math.min(a.y1, a.y2),
@@ -176,6 +178,7 @@
         }
         case "arrow":
         case "line":
+        case "measure":
           return this.segDist(p.x, p.y, a.x1, a.y1, a.x2, a.y2) <= tol + (a.width || 3) / 2 + 4;
         case "freehand":
         case "strike": {
@@ -211,10 +214,15 @@
       }
       const b = this.bbox(a);
       if (SCALE_TYPES[a.type]) {
-        out.tl = toS(b.x, b.y);
-        out.tr = toS(b.x + b.w, b.y);
-        out.bl = toS(b.x, b.y + b.h);
-        out.br = toS(b.x + b.w, b.y + b.h);
+        // Tutamaçlar kutunun biraz dışında: küçük öğeler (çarpı, pin, numara…)
+        // ortasından tutulup taşınabilsin, köşeler gövdeyi kaplamasın.
+        const P = HANDLE_PAD;
+        const tl = toS(b.x, b.y);
+        const br = toS(b.x + b.w, b.y + b.h);
+        out.tl = { x: tl.x - P, y: tl.y - P };
+        out.tr = { x: br.x + P, y: tl.y - P };
+        out.bl = { x: tl.x - P, y: br.y + P };
+        out.br = { x: br.x + P, y: br.y + P };
         return out;
       }
       out.tl = toS(b.x, b.y);
@@ -226,6 +234,16 @@
       out.bm = toS(b.x + b.w / 2, b.y + b.h);
       out.br = toS(b.x + b.w, b.y + b.h);
       return out;
+    },
+
+    // Tutamacın görsel (image) koordinatındaki gerçek noktası (dolgu hariç).
+    handlePoint(a, handle) {
+      if (handle === "p1") return { x: a.x1, y: a.y1 };
+      if (handle === "p2") return { x: a.x2, y: a.y2 };
+      const b = this.bbox(a);
+      const x = handle.indexOf("l") >= 0 ? b.x : handle.indexOf("r") >= 0 ? b.x + b.w : b.x + b.w / 2;
+      const y = handle.indexOf("t") >= 0 ? b.y : handle.indexOf("b") >= 0 ? b.y + b.h : b.y + b.h / 2;
+      return { x: x, y: y };
     },
 
     handleAt(a, screenPt, view, radius) {
