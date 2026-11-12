@@ -3,62 +3,35 @@
 
   const SSA = (window.SSA = window.SSA || {});
 
-  function renderFull(project, cb) {
-    if (!project || !project.image || !project.imageEl) {
-      cb(null);
-      return;
-    }
-    const gap = SSA.PANE_GAP || 24;
-    const has2 = !!(project.image2 && project.imageEl2);
-    const o2 = has2
-      ? project.image2Pos || { x: project.image.w + gap, y: 0 }
-      : { x: 0, y: 0 };
-    const minX = has2 ? Math.min(0, o2.x) : 0;
-    const minY = has2 ? Math.min(0, o2.y) : 0;
-    const maxX = has2 ? Math.max(project.image.w, o2.x + project.image2.w) : project.image.w;
-    const maxY = has2 ? Math.max(project.image.h, o2.y + project.image2.h) : project.image.h;
-    const pad = has2 ? 0 : 0;
-    const W = Math.max(1, Math.round(maxX - minX + pad * 2));
-    const H = Math.max(1, Math.round(maxY - minY + pad * 2));
+  /* Tüm görünür öğeleri kapsayan tuvali çizer (v2: arka plan yok).
+     Görseller arasındaki boşluklar beyaz doldurulur. */
+  function renderFullSync(project) {
+    if (!project) return null;
+    const b = SSA.contentBBox(project);
+    if (!b) return null;
+    const minX = Math.floor(b.x);
+    const minY = Math.floor(b.y);
+    const W = Math.max(1, Math.ceil(b.x + b.w) - minX);
+    const H = Math.max(1, Math.ceil(b.y + b.h) - minY);
     const c = document.createElement("canvas");
     c.width = W;
     c.height = H;
     const cx = c.getContext("2d");
-    cx.clearRect(0, 0, c.width, c.height);
-
-    const dx1 = -minX + pad;
-    const dy1 = -minY + pad;
-    try {
-      cx.drawImage(project.imageEl, dx1, dy1, project.image.w, project.image.h);
-    } catch (e) {
-      /* ignore */
-    }
-    const env = { canvas: c, view: { scale: 1, ox: dx1, oy: dy1 }, dpr: 1 };
+    cx.fillStyle = "#ffffff";
+    cx.fillRect(0, 0, W, H);
+    const env = { canvas: c, view: { scale: 1, ox: -minX, oy: -minY }, dpr: 1 };
+    cx.save();
+    cx.translate(-minX, -minY);
     for (let i = 0; i < project.annotations.length; i++) {
       if (!project.annotations[i].hidden) SSA.Render.drawAnn(cx, project.annotations[i], env);
     }
-    if (has2) {
-      const dx2 = dx1 + o2.x;
-      const dy2 = dy1 + o2.y;
-      const a2 = project.image2Opacity == null ? 1 : project.image2Opacity;
-      cx.save();
-      cx.globalAlpha = a2;
-      try {
-        cx.drawImage(project.imageEl2, dx2, dy2, project.image2.w, project.image2.h);
-      } catch (e) {
-        /* ignore */
-      }
-      cx.restore();
-      const env2 = { canvas: c, view: { scale: 1, ox: dx2, oy: dy2 }, dpr: 1 };
-      cx.save();
-      cx.translate(dx2, dy2);
-      const anns2 = project.annotations2 || [];
-      for (let i = 0; i < anns2.length; i++) {
-        if (!anns2[i].hidden) SSA.Render.drawAnn(cx, anns2[i], env2);
-      }
-      cx.restore();
-    }
-    cb(c);
+    cx.restore();
+    c._origin = { x: minX, y: minY };
+    return c;
+  }
+
+  function renderFull(project, cb) {
+    cb(renderFullSync(project));
   }
 
   function safeName(name) {
@@ -75,6 +48,7 @@
 
   SSA.Export = {
     renderFull: renderFull,
+    renderFullSync: renderFullSync,
 
     downloadPNG(project, name) {
       renderFull(project, function (c) {
@@ -97,11 +71,9 @@
     downloadPNGRegion(project, rect, name) {
       renderFull(project, function (c) {
         if (!c) return;
-        const gap = SSA.PANE_GAP || 24;
-        const has2 = !!(project.image2 && project.imageEl2);
-        const o2 = has2 ? project.image2Pos || { x: project.image.w + gap, y: 0 } : { x: 0, y: 0 };
-        const minX = has2 ? Math.min(0, o2.x) : 0;
-        const minY = has2 ? Math.min(0, o2.y) : 0;
+        const o = c._origin || { x: 0, y: 0 };
+        const minX = o.x;
+        const minY = o.y;
         const pad = 20;
         let rx = Math.floor(rect.x - minX - pad);
         let ry = Math.floor(rect.y - minY - pad);
@@ -155,16 +127,12 @@
     downloadJSON(project) {
       const data = {
         app: "uat-screenshot-annotator",
-        version: 1,
+        version: 2,
         name: project.name,
-        image: project.image,
+        assets: SSA.Assets.used(project),
         annotations: project.annotations,
         numberSeed: project.numberSeed
       };
-      if (project.image2) {
-        data.image2 = project.image2;
-        data.annotations2 = project.annotations2 || [];
-      }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -184,7 +152,7 @@
         fr.onload = function () {
           try {
             const data = JSON.parse(fr.result);
-            if (!data || !data.image || !data.image.src) throw new Error("Geçersiz dosya");
+            if (!data || (!(data.image && data.image.src) && !data.assets)) throw new Error("Geçersiz dosya");
             resolve(data);
           } catch (e) {
             reject(e);

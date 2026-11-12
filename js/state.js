@@ -206,22 +206,16 @@
     }
 
     function payloadOf(p) {
-      const payload = {
+      return {
         id: p.id,
+        version: 2,
         name: p.name,
         updatedAt: p.updatedAt,
-        image: { src: p.image.src, w: p.image.w, h: p.image.h },
+        assets: SSA.Assets.used(p),
         annotations: p.annotations,
         view: { scale: 1, ox: 0, oy: 0 },
         numberSeed: p.numberSeed
       };
-      if (p.image2) {
-        payload.image2 = { src: p.image2.src, w: p.image2.w, h: p.image2.h };
-        payload.annotations2 = p.annotations2 || [];
-        payload.image2Pos = p.image2Pos || { x: p.image.w + SSA.PANE_GAP, y: 0 };
-        payload.image2Opacity = typeof p.image2Opacity === "number" ? p.image2Opacity : 1;
-      }
-      return payload;
     }
 
     return {
@@ -427,65 +421,164 @@
     return c.toDataURL("image/jpeg", 0.92);
   };
 
-  /* Shrink/compress one image (+ its annotations) for storage.
-     Mutates the project so in-memory coordinates stay consistent. */
-  function shrinkOne(p, imgProp, elProp, annProp) {
-    const im = p[imgProp];
-    const el = p[elProp];
-    if (!im || !el) return;
-    const w0 = im.w;
-    const h0 = im.h;
-    const maxDim = 2600;
-    const big = Math.max(w0, h0) > maxDim;
-    const isPng = /^data:image\/png/i.test(im.src);
-    const pngHeavy = isPng && im.src.length > 400000;
-    if (!big && !pngHeavy) return;
-
-    const s = big ? maxDim / Math.max(w0, h0) : 1;
-    const w = Math.max(1, Math.round(w0 * s));
-    const h = Math.max(1, Math.round(h0 * s));
-    const c = document.createElement("canvas");
-    c.width = w;
-    c.height = h;
-    const cx = c.getContext("2d");
-    cx.imageSmoothingQuality = "high";
-    cx.drawImage(el, 0, 0, w, h);
-    const src = c.toDataURL("image/jpeg", 0.85);
-
-    if (s !== 1 && p[annProp]) {
-      for (let i = 0; i < p[annProp].length; i++) {
-        SSA.geom.scale(p[annProp][i], s);
-      }
-    }
-
-    p[imgProp] = { src: src, w: w, h: h };
-    const img = new Image();
-    img.onload = function () {
-      if (SSA.App && SSA.App.render) SSA.App.render();
-    };
-    img.src = src;
-    p[elProp] = img;
-  }
-
+  /* Büyük görsel varlıklarını kayıt için küçült/sıkıştır.
+     Öğenin tuvaldeki boyutu (x,y,w,h) değişmez, yalnızca piksel verisi küçülür. */
   SSA.compressProject = function (p) {
-    if (!p) return;
-    shrinkOne(p, "image", "imageEl", "annotations");
-    shrinkOne(p, "image2", "imageEl2", "annotations2");
+    if (!p || !p.assets) return false;
+    let changed = false;
+    const used = SSA.Assets.used(p);
+    for (const id in used) {
+      const im = p.assets[id];
+      const el = SSA.Assets.el(id);
+      if (!im || !el) continue;
+      const maxDim = 2600;
+      const big = Math.max(im.w, im.h) > maxDim;
+      const pngHeavy = /^data:image\/png/i.test(im.src) && im.src.length > 400000;
+      if (!big && !pngHeavy) continue;
+      const s = big ? maxDim / Math.max(im.w, im.h) : 1;
+      const w = Math.max(1, Math.round(im.w * s));
+      const h = Math.max(1, Math.round(im.h * s));
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const cx = c.getContext("2d");
+      cx.imageSmoothingQuality = "high";
+      cx.drawImage(el, 0, 0, w, h);
+      const src = c.toDataURL("image/jpeg", 0.85);
+      p.assets[id] = { src: src, w: w, h: h };
+      SSA.Assets.register(id, src);
+      changed = true;
+    }
+    return changed;
   };
 
   /* Small thumbnail dataURL for the project list. */
   SSA.makeThumb = function (p) {
     try {
+      const full = SSA.Export.renderFullSync(p);
+      if (!full) return null;
       const c = document.createElement("canvas");
       const W = 120;
-      const ratio = p.image.h / p.image.w;
+      const fullH = Math.round((W * full.height) / full.width);
       c.width = W;
-      c.height = Math.max(1, Math.round(W * ratio));
+      c.height = Math.max(1, Math.min(160, fullH));
       const cx = c.getContext("2d");
-      cx.drawImage(p.imageEl, 0, 0, c.width, c.height);
+      cx.fillStyle = "#ffffff";
+      cx.fillRect(0, 0, c.width, c.height);
+      cx.drawImage(full, 0, 0, W, fullH);
       return c.toDataURL("image/jpeg", 0.6);
     } catch (e) {
       return null;
     }
+  };
+})();
+
+/* ===================== Görsel öğeleri (v2) =====================
+   Arka plan görseli yok: her görsel "image" türünde bir öğedir.
+   Piksel verisi project.assets[id] = {src,w,h} içinde, öğe ise
+   { type:"image", asset:id, x,y,w,h, opacity } olarak tutulur.
+   Böylece geri alma geçmişi büyük dataURL'leri kopyalamaz. */
+(function () {
+  "use strict";
+  const SSA = (window.SSA = window.SSA || {});
+
+  const cache = {}; // assetId -> HTMLImageElement
+  const srcOf = {}; // assetId -> src
+
+  SSA.Assets = {
+    register: function (id, src) {
+      if (!id || !src) return;
+      if (srcOf[id] === src && cache[id]) return;
+      srcOf[id] = src;
+      const img = new Image();
+      img.onload = function () {
+        if (SSA.App && SSA.App.render) SSA.App.render();
+      };
+      img.src = src;
+      cache[id] = img;
+    },
+    el: function (id) {
+      const im = cache[id];
+      return im && im.complete && im.naturalWidth ? im : null;
+    },
+    registerAll: function (p) {
+      const a = (p && p.assets) || {};
+      for (const id in a) SSA.Assets.register(id, a[id].src);
+    },
+    add: function (p, src, w, h) {
+      const id = SSA.util.uid();
+      p.assets = p.assets || {};
+      p.assets[id] = { src: src, w: w, h: h };
+      SSA.Assets.register(id, src);
+      return id;
+    },
+    /* Yalnızca öğelerin kullandığı varlıklar (kayıt / dışa aktarım için) */
+    used: function (p) {
+      const out = {};
+      const anns = (p && p.annotations) || [];
+      for (let i = 0; i < anns.length; i++) {
+        const a = anns[i];
+        if (a.type === "image" && p.assets && p.assets[a.asset]) out[a.asset] = p.assets[a.asset];
+      }
+      return out;
+    }
+  };
+
+  SSA.imageAnn = function (assetId, x, y, w, h) {
+    return { id: SSA.util.uid(), type: "image", asset: assetId, x: x, y: y, w: w, h: h, opacity: 1, color: "#4f8cff", width: 2 };
+  };
+
+  /* Görünür tüm öğeleri kapsayan dikdörtgen (yoksa null) */
+  SSA.contentBBox = function (p, onlyImages) {
+    const anns = (p && p.annotations) || [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < anns.length; i++) {
+      const a = anns[i];
+      if (a.hidden) continue;
+      if (onlyImages && a.type !== "image") continue;
+      const b = SSA.geom.bbox(a);
+      if (!isFinite(b.x) || !isFinite(b.y)) continue;
+      const pad = a.type === "image" || a.type === "blur" || a.type === "highlight" ? 0 : (a.width || 3) / 2 + 2;
+      minX = Math.min(minX, b.x - pad);
+      minY = Math.min(minY, b.y - pad);
+      maxX = Math.max(maxX, b.x + b.w + pad);
+      maxY = Math.max(maxY, b.y + b.h + pad);
+    }
+    if (!isFinite(minX)) return null;
+    return { x: minX, y: minY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY) };
+  };
+
+  /* Eski biçimi (arka plan image + image2) yeni biçime çevirir. Yerinde değiştirir. */
+  SSA.migrateProject = function (p) {
+    if (!p) return p;
+    p.assets = p.assets || {};
+    p.annotations = p.annotations || [];
+    const front = [];
+    if (p.image && p.image.src) {
+      const id = SSA.Assets.add(p, p.image.src, p.image.w, p.image.h);
+      front.push(SSA.imageAnn(id, 0, 0, p.image.w, p.image.h));
+    }
+    let tail = [];
+    if (p.image2 && p.image2.src) {
+      const pos = p.image2Pos || { x: (p.image ? p.image.w : 0) + (SSA.PANE_GAP || 24), y: 0 };
+      const id2 = SSA.Assets.add(p, p.image2.src, p.image2.w, p.image2.h);
+      const a2 = SSA.imageAnn(id2, pos.x, pos.y, p.image2.w, p.image2.h);
+      if (typeof p.image2Opacity === "number") a2.opacity = p.image2Opacity;
+      tail.push(a2);
+      const anns2 = p.annotations2 || [];
+      for (let i = 0; i < anns2.length; i++) {
+        SSA.geom.translate(anns2[i], pos.x, pos.y);
+        tail.push(anns2[i]);
+      }
+    }
+    p.annotations = front.concat(p.annotations, tail);
+    p.image = null;
+    p.imageEl = null;
+    p.image2 = null;
+    p.imageEl2 = null;
+    p.annotations2 = [];
+    p.image2Pos = null;
+    SSA.Assets.registerAll(p);
+    return p;
   };
 })();

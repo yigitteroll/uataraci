@@ -25,20 +25,22 @@ Gmail, **içinde `.js` bulunan `.zip`** dosyalarını güvenlik nedeniyle engell
 3. **Yeniden adlandırma:** zip'i `screenshot-annotator.zip.txt` olarak kaydedip gönderin; alıcı indirdikten sonra adı tekrar `.zip` yapar.
 
 
-## Görsel yükleme
-- **Görsel Aç** ile dosya seç
-- **Ekran Görüntüsü** ile ekran / pencere / sekme seçip anlık görüntü al (tarayıcı izin ister)
-- Sürükle-bırak
-- **Ctrl+V** ile panodan ekran görüntüsü yapıştır
+## Görsel ekleme (sınırsız)
+Tuvalde sabit bir arka plan yoktur: eklediğin **her görsel ayrı bir öğedir**; ok ve dikdörtgen gibi seçilir, **sürüklenerek taşınır**, **köşelerinden oran korunarak boyutlandırılır**, katmanlar listesinde öne/arkaya alınır, gizlenir veya silinir.
 
-## İki görsel (karşılaştırma)
-- Üst bardaki **2. Görsel** butonuyla ikinci görseli ekleyin; başlangıçta yan yana gösterilir.
-- Zoom ve kaydırma ikisinde **senkron** çalışır.
-- **Serbest konum:** sağ panelde **Taşı** düğmesini (veya **M** tuşu) açıp ikinci görselin üzerinde sürükleyin. **Yan yana** ve **Üst üste** düğmeleriyle hızlı konumlandırın.
-- Üst üste bindirip **opaklık** kaydırıcısıyla iki sürümü karşılaştırabilirsiniz.
-- Her görselin **kendi işaretlemeleri** vardır; hangi panelde çizerseniz o panelin katmanlarına eklenir. Katmanlar başlığındaki **1 / 2** düğmeleriyle aktif paneli değiştirin.
-- Aktif panele görsel yüklemek için dosya / sürükle-bırak / **Ctrl+V** / **Ekran Görüntüsü** kullanın. İkinci görseli kaldırmak için **⋯ → 2. görseli kaldır**.
-- **PNG İndir**, iki görseli konumlarına göre kapsayan **tek görsel** olarak verir.
+- **Ctrl+V** — her yapıştırma tuvale yeni bir görsel ekler (art arda yapıştırabilirsin)
+- **Görsel Ekle** — dosya seç (birden fazla seçilebilir)
+- **Sürükle-bırak** — birden fazla dosyayı aynı anda bırakabilirsin
+- **Ekran Görüntüsü** — ekran / pencere / sekme seçip anlık görüntü al (tarayıcı izin ister)
+
+İlk görsel sol üste, sonrakiler mevcut görsellerin **sağına** yerleşir; ardından istediğin yere taşırsın.
+
+- **Karşılaştırma:** iki görseli üst üste sürükle, üstteki görseli seçip **Opaklık** kaydırıcısıyla saydamlaştır.
+- **Kırp (C):** bir görselin üzerinde alan seç; yalnızca o görsel kırpılır (Geri Al ile döner).
+- **Tüm işaretlemeleri temizle** görselleri silmez, yalnızca işaretlemeleri kaldırır.
+- **PNG İndir / Kopyala**, tüm öğeleri kapsayan **tek görsel** üretir; görseller arası boşluk beyaz doldurulur.
+- **Ctrl+sürükle** bir görselin üzerinden başlasa bile kutu ile çoklu seçim yapar.
+- Eski sürümle kaydedilmiş projeler (1. / 2. görsel) açılırken otomatik olarak bu yapıya çevrilir.
 
 ## Araçlar
 | Tuş | Araç | Açıklama |

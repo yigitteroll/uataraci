@@ -389,6 +389,17 @@
       case "blur":
         applyRegion(ctx, env.canvas, { x: a.x, y: a.y, w: a.w, h: a.h }, a.mode, a.strength || 12, env.view, env.dpr);
         break;
+      case "image": {
+        const el = SSA.Assets && SSA.Assets.el(a.asset);
+        ctx.imageSmoothingQuality = "high";
+        if (el) {
+          ctx.drawImage(el, a.x, a.y, a.w, a.h);
+        } else {
+          ctx.fillStyle = "rgba(128,128,128,0.25)";
+          ctx.fillRect(a.x, a.y, a.w, a.h);
+        }
+        break;
+      }
     }
     ctx.restore();
   }
@@ -457,9 +468,9 @@
       ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     }
 
-    if (!project || !project.image || !project.imageEl) return;
+    if (!project) return;
 
-    const o2 = project.image2
+    const o2 = project.image2 && project.image
       ? project.image2Pos || { x: project.image.w + SSA.PANE_GAP, y: 0 }
       : { x: 0, y: 0 };
     const a2 = project.image2Opacity == null ? 1 : project.image2Opacity;
@@ -467,10 +478,13 @@
     ctx.translate(view.ox, view.oy);
     ctx.scale(view.scale, view.scale);
     ctx.imageSmoothingQuality = "high";
-    try {
-      ctx.drawImage(project.imageEl, 0, 0, project.image.w, project.image.h);
-    } catch (e) {
-      /* image not ready */
+    // v2'de arka plan görseli yok (eski projeler yüklenirken öğeye çevrilir)
+    if (project.image && project.imageEl) {
+      try {
+        ctx.drawImage(project.imageEl, 0, 0, project.image.w, project.image.h);
+      } catch (e) {
+        /* image not ready */
+      }
     }
     if (project.image2 && project.imageEl2) {
       ctx.save();

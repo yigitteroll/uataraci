@@ -32,21 +32,17 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
           <span>Projeler</span>
         </button>
-        <button id="openBtn" class="btn" type="button" title="Görsel Aç (O)">
+        <button id="openBtn" class="btn" type="button" title="Görsel ekle (birden fazla seçebilirsiniz)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 20h16"/></svg>
-          <span>Görsel Aç</span>
+          <span>Görsel Ekle</span>
         </button>
-        <button id="pasteBtn" class="btn" type="button" title="Panodan Yapıştır (Ctrl+V)">
+        <button id="pasteBtn" class="btn" type="button" title="Panodan görsel ekle (Ctrl+V)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>
           <span>Yapıştır</span>
         </button>
         <button id="captureBtn" class="btn" type="button" title="Ekran görüntüsü al">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M9 21h6"/><path d="M12 17v4"/><circle cx="12" cy="10.5" r="2.6"/></svg>
           <span>Ekran Görüntüsü</span>
-        </button>
-        <button id="compareBtn" class="btn" type="button" title="İkinci görsel ekle / değiştir (yan yana karşılaştırma)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="1.5"/><rect x="13" y="4" width="8" height="16" rx="1.5"/></svg>
-          <span>2. Görsel</span>
         </button>
 
         <span class="divider"></span>
@@ -83,12 +79,11 @@
             <button data-action="import-json" type="button">JSON yükle</button>
             <button data-action="export-selection" type="button">Seçili alanı PNG indir</button>
             <div class="menu-label">Görünüm</div>
-            <button data-action="fit" type="button">Görsele sığdır <kbd>Ctrl+0</kbd></button>
+            <button data-action="fit" type="button">Tümünü sığdır <kbd>Ctrl+0</kbd></button>
             <button data-action="actual" type="button">%100 boyut</button>
             <button data-action="toggle-grid" type="button" class="menu-check">Izgara</button>
             <button data-action="toggle-ruler" type="button" class="menu-check">Cetvel</button>
             <div class="menu-label">Düzenle</div>
-            <button data-action="remove-image2" type="button">2. görseli kaldır</button>
             <button data-action="clear-ann" type="button" class="danger">Tüm işaretlemeleri temizle</button>
           </div>
         </div>
@@ -106,17 +101,17 @@
             <div class="empty-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.7"/><path d="M21 15.5 16.5 11 6 21"/></svg>
             </div>
-            <h2>Görsel yükle veya yapıştır</h2>
-            <p>Ekran görüntüsünü buraya sürükle, <b>Görsel Aç</b> ile seç ya da <b>Ctrl+V</b> ile panodan yapıştır.</p>
+            <h2>Görselleri yapıştır veya sürükle</h2>
+            <p>Her <b>Ctrl+V</b> tuvale yeni bir görsel ekler; görselleri sürükleyip taşıyabilir, köşelerinden boyutlandırabilirsin. Birden fazla dosyayı aynı anda sürükleyip bırakabilirsin.</p>
             <div class="empty-actions">
-              <button class="btn primary" id="emptyOpen" type="button">Görsel Aç</button>
+              <button class="btn primary" id="emptyOpen" type="button">Görsel Ekle</button>
               <button class="btn" id="emptyPaste" type="button">Panodan Yapıştır</button>
               <button class="btn" id="emptyCapture" type="button">Ekran Görüntüsü Al</button>
             </div>
           </div>
         </div>
 
-        <div class="drop-hint" id="dropHint">Görseli buraya bırak</div>
+        <div class="drop-hint" id="dropHint">Görselleri buraya bırak</div>
 
         <div class="zoom-bar">
           <button class="zoom-btn" data-zoom="out" type="button" title="Uzaklaştır">−</button>
@@ -308,7 +303,7 @@
 
   <div class="ctx-menu" id="ctxMenu" hidden></div>
 
-  <input type="file" id="fileInput" accept="image/*" hidden />
+  <input type="file" id="fileInput" accept="image/*" multiple hidden />
   <input type="file" id="fileInput2" accept="image/*" hidden />
   <input type="file" id="jsonInput" accept="application/json,.json" hidden />
 

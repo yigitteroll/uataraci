@@ -13,7 +13,7 @@
   const BBOX_TYPES = { rect: 1, ellipse: 1, highlight: 1, blur: 1 };
   const LINE_TYPES = { arrow: 1, line: 1, measure: 1 };
   const PATH_TYPES = { freehand: 1, strike: 1 };
-  const SCALE_TYPES = { text: 1, label: 1, freehand: 1, strike: 1, cross: 1, tick: 1, pin: 1, number: 1 };
+  const SCALE_TYPES = { text: 1, label: 1, freehand: 1, strike: 1, cross: 1, tick: 1, pin: 1, number: 1, image: 1 };
   const HANDLE_PAD = 7; // ekran px
   const RESIZABLE = {
     rect: 1,
@@ -30,7 +30,8 @@
     cross: 1,
     tick: 1,
     pin: 1,
-    number: 1
+    number: 1,
+    image: 1
   };
 
   SSA.geom = {
@@ -45,6 +46,7 @@
         case "ellipse":
         case "highlight":
         case "blur":
+        case "image":
           return { x: a.x, y: a.y, w: a.w, h: a.h };
         case "arrow":
         case "line":
@@ -122,7 +124,7 @@
 
     scale(a, s) {
       const t = a.type;
-      if (BBOX_TYPES[t]) {
+      if (BBOX_TYPES[t] || t === "image") {
         a.x *= s;
         a.y *= s;
         a.w *= s;
@@ -339,6 +341,11 @@
         a.x = sc(a.x, ox);
         a.y = sc(a.y, oy);
         a.size = Math.max(8, (a.size || 32) * f);
+      } else if (t === "image") {
+        a.x = sc(a.x, ox);
+        a.y = sc(a.y, oy);
+        a.w = Math.max(8, a.w * f);
+        a.h = Math.max(8, a.h * f);
       } else {
         a.x = sc(a.x, ox);
         a.y = sc(a.y, oy);

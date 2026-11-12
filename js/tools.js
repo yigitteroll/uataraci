@@ -96,7 +96,7 @@
     if (ev.button !== 0 && ev.button !== 1) return;
     if (ev.detail && ev.detail > 1) return;
     const App = SSA.App;
-    if (!App || !App.state.project || !App.state.project.image) return;
+    if (!App || !App.state.project) return;
 
     const sp = relPt(ev);
     const world = App.screenToImage(sp.x, sp.y);
@@ -155,6 +155,8 @@
         }
       }
 
+      // Ctrl+sürükle: bir görselin/öğenin üzerinden başlasa bile kutu ile seç
+      if (hit && (ev.ctrlKey || ev.metaKey)) hit = null;
       if (hit) {
         if (ev.shiftKey) {
           App.toggleSelect(hit.id);
@@ -462,7 +464,7 @@
 
   function onDblClick(ev) {
     const App = SSA.App;
-    if (!App || !App.state.project || !App.state.project.image) return;
+    if (!App || !App.state.project) return;
     const sp = relPt(ev);
     const world = App.screenToImage(sp.x, sp.y);
     const pane = paneAt(world);
@@ -489,7 +491,7 @@
   function onContextMenu(ev) {
     ev.preventDefault();
     const App = SSA.App;
-    if (!App || !App.state.project || !App.state.project.image) return;
+    if (!App || !App.state.project) return;
     const sp = relPt(ev);
     const world = App.screenToImage(sp.x, sp.y);
     const pane = paneAt(world);

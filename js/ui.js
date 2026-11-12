@@ -24,6 +24,7 @@
     ruler: '<rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/>',
     cross: '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
     tick: '<path d="M5 13l4 4L19 7"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-9 9"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
     auto: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',
@@ -91,7 +92,8 @@
     number: "number",
     cross: "cross",
     tick: "tick",
-    blur: "blur"
+    blur: "blur",
+    image: "image"
   };
 
   const SWATCHES = [
@@ -229,7 +231,7 @@
       let loaded = false;
       if (active) {
         const data = await SSA.Store.getProject(active);
-        if (data && data.image) {
+        if (data && ((data.image && data.image.src) || data.assets)) {
           this.loadProject(active, data);
           loaded = true;
         }
@@ -336,25 +338,18 @@
     /* ---------- view ops ---------- */
     fitView: function () {
       const p = this.state.project;
-      if (!p || !p.image) return;
+      if (!p) return;
+      const b = SSA.contentBBox(p);
+      if (!b) return;
       const cw = this.canvas.width / this.dpr;
       const ch = this.canvas.height / this.dpr;
       const pad = 44;
-      let minX = 0;
-      let minY = 0;
-      let maxX = p.image.w;
-      let maxY = p.image.h;
-      if (p.image2) {
-        const o = this.paneOrigin(2);
-        minX = Math.min(minX, o.x);
-        minY = Math.min(minY, o.y);
-        maxX = Math.max(maxX, o.x + p.image2.w);
-        maxY = Math.max(maxY, o.y + p.image2.h);
-      }
-      const W = Math.max(1, maxX - minX);
-      const H = Math.max(1, maxY - minY);
+      const minX = b.x;
+      const minY = b.y;
+      const W = Math.max(1, b.w);
+      const H = Math.max(1, b.h);
       const s = Math.min((cw - pad * 2) / W, (ch - pad * 2) / H);
-      const scale = clamp(s, 0.02, 4);
+      const scale = clamp(s, 0.02, 1); // sığdırırken %100'den fazla büyütme
       p.view.scale = scale;
       p.view.ox = (cw - W * scale) / 2 - minX * scale;
       p.view.oy = (ch - H * scale) / 2 - minY * scale;
@@ -362,7 +357,7 @@
     },
     setZoom: function (scale, anchor) {
       const p = this.state.project;
-      if (!p || !p.image) return;
+      if (!p) return;
       const cw = this.canvas.width / this.dpr;
       const ch = this.canvas.height / this.dpr;
       const a = anchor || { x: cw / 2, y: ch / 2 };
@@ -591,9 +586,12 @@
     clearAnnotations: function () {
       const p = this.state.project;
       if (!p) return;
-      if (!p.annotations.length && !(p.annotations2 && p.annotations2.length)) return;
-      p.annotations = [];
-      if (p.image2) p.annotations2 = [];
+      // Görseller kalır, yalnızca işaretlemeler temizlenir
+      const keep = p.annotations.filter(function (a) {
+        return a.type === "image";
+      });
+      if (keep.length === p.annotations.length) return;
+      p.annotations = keep;
       this.state.selectedIds = [];
       this.state.selectedIds2 = [];
       this.commitHistory();
@@ -961,10 +959,15 @@
     updateStatus: function () {
       const p = this.state.project;
       const v = this.view();
-      if (p && p.image) {
-        let dims = p.image.w + " × " + p.image.h + " px";
-        if (p.image2) dims += "  ·  2: " + p.image2.w + " × " + p.image2.h + " px";
-        this.el.statusDims.textContent = dims;
+      const nImg = p
+        ? p.annotations.filter(function (a) {
+            return a.type === "image";
+          }).length
+        : 0;
+      const cb = p ? SSA.contentBBox(p) : null;
+      if (cb) {
+        this.el.statusDims.textContent =
+          nImg + " görsel · çıktı " + Math.round(cb.w) + " × " + Math.round(cb.h) + " px";
       } else {
         this.el.statusDims.textContent = "Görsel yok";
       }
@@ -978,7 +981,7 @@
 
     updateEmpty: function () {
       const p = this.state.project;
-      const empty = !(p && p.image);
+      const empty = !(p && p.annotations && p.annotations.length);
       this.el.stageEmpty.hidden = !empty;
     },
 
@@ -1180,8 +1183,6 @@
       };
       set("toggle-grid", SSA.view.grid);
       set("toggle-ruler", SSA.view.ruler);
-      const rm = m.querySelector('[data-action="remove-image2"]');
-      if (rm) rm.disabled = !has2;
       const sel = m.querySelector('[data-action="export-selection"]');
       if (sel) sel.disabled = !this.selectedAnns().length;
     },
@@ -1358,18 +1359,10 @@
         self.el.fileInput.click();
       });
       this.el.fileInput.addEventListener("change", function () {
-        const f = this.files && this.files[0];
-        if (f) self.openImageFromBlob(f, f.name, self.state.activePane);
+        self.openImageFiles(this.files);
         this.value = "";
       });
-      this.el.fileInput2.addEventListener("change", function () {
-        const f = this.files && this.files[0];
-        if (f) self.openImageFromBlob(f, f.name, 2);
-        this.value = "";
-      });
-      this.el.compareBtn.addEventListener("click", function () {
-        self.el.fileInput2.click();
-      });
+
       this.el.jsonInput.addEventListener("change", function () {
         const f = this.files && this.files[0];
         if (f) self.importJSONFile(f);
@@ -1460,8 +1453,6 @@
         self.el.moreMenu.hidden = true;
         if (act === "export-json") self.exportJSON();
         else if (act === "import-json") self.el.jsonInput.click();
-        else if (act === "second-image") self.el.fileInput2.click();
-        else if (act === "remove-image2") self.removeSecondImage();
         else if (act === "clear-ann") {
           if (self.state.project.annotations.length && window.confirm("Tüm işaretlemeler silinsin mi?")) {
             self.clearAnnotations();
@@ -1569,6 +1560,7 @@
         name: "UAT - " + new Date().toLocaleDateString("tr-TR"),
         image: null,
         imageEl: null,
+        assets: {},
         annotations: [],
         image2: null,
         imageEl2: null,
@@ -1589,9 +1581,57 @@
       this.updateHistoryButtons();
       this.updatePaneSwitch();
       this.setSelection([]);
+      this.updateEmpty();
       this.renderLayers();
       this.render();
       this.setSaveStatus("Yeni proje");
+    },
+
+    /* Kayıtlı veri / JSON -> bellekteki proje (eski biçim otomatik dönüştürülür) */
+    projectFromData: function (data, id) {
+      const proj = {
+        id: id || data.id || SSA.util.uid(),
+        name: data.name || "Proje",
+        image: data.image && data.image.src ? { src: data.image.src, w: data.image.w, h: data.image.h } : null,
+        imageEl: null,
+        assets: data.assets || {},
+        annotations: data.annotations || [],
+        image2: data.image2 && data.image2.src ? { src: data.image2.src, w: data.image2.w, h: data.image2.h } : null,
+        imageEl2: null,
+        annotations2: data.annotations2 || [],
+        image2Pos: data.image2Pos || null,
+        image2Opacity: typeof data.image2Opacity === "number" ? data.image2Opacity : 1,
+        view: { scale: 1, ox: 0, oy: 0 },
+        numberSeed: data.numberSeed || 1,
+        updatedAt: data.updatedAt || Date.now()
+      };
+      SSA.migrateProject(proj);
+      return proj;
+    },
+    _activateProject: function (proj) {
+      const self = this;
+      this.state.project = proj;
+      this.state.selectedIds = [];
+      this.state.selectedIds2 = [];
+      this.state.activePane = 1;
+      this.state.moveImage2 = false;
+      this.state.preview = null;
+      this.state.previewPane = 1;
+      this.el.projectName.value = proj.name;
+      SSA.History.reset(this.snapshot());
+      this.updateHistoryButtons();
+      this.updatePaneSwitch();
+      this.updatePropVisibility();
+      this.syncProps();
+      this.setSelection([]);
+      this.updateEmpty();
+      this.renderLayers();
+      this.fitView();
+      this.render();
+      // görseller yüklendikçe görünümü bir kez daha sığdır
+      setTimeout(function () {
+        if (self.state.project === proj) self.fitView();
+      }, 120);
     },
 
     loadProject: function (id, preData) {
@@ -1609,134 +1649,80 @@
       }
     },
     _loadProjectData: function (data) {
-      const self = this;
-      if (!data || !data.image) {
+      if (!data || (!(data.image && data.image.src) && !data.assets)) {
         this.toast("Proje yüklenemedi", "error");
         return;
       }
-      const proj = {
-        id: data.id,
-        name: data.name || "Proje",
-        image: { src: data.image.src, w: data.image.w, h: data.image.h },
-        imageEl: new Image(),
-        annotations: data.annotations || [],
-        image2: data.image2 ? { src: data.image2.src, w: data.image2.w, h: data.image2.h } : null,
-        imageEl2: data.image2 ? new Image() : null,
-        annotations2: data.annotations2 || [],
-        image2Pos: data.image2 ? data.image2Pos || { x: data.image.w + SSA.PANE_GAP, y: 0 } : null,
-        image2Opacity: typeof data.image2Opacity === "number" ? data.image2Opacity : 1,
-        view: { scale: 1, ox: 0, oy: 0 },
-        numberSeed: data.numberSeed || 1,
-        updatedAt: data.updatedAt || Date.now()
-      };
-      proj.imageEl.onload = function () {
-        self.fitView();
-        self.render();
-      };
-      proj.imageEl.src = proj.image.src;
-      if (proj.image2) {
-        proj.imageEl2.onload = function () {
-          self.fitView();
-          self.render();
-        };
-        proj.imageEl2.src = proj.image2.src;
-      }
-
-      this.state.project = proj;
-      this.state.selectedIds = [];
-      this.state.selectedIds2 = [];
-      this.state.activePane = 1;
-      this.state.preview = null;
-      this.state.previewPane = 1;
-      this.el.projectName.value = proj.name;
+      const proj = this.projectFromData(data);
+      this._activateProject(proj);
       SSA.Store.setActive(proj.id);
-      SSA.History.reset(this.snapshot());
-      this.updateHistoryButtons();
-      this.updatePaneSwitch();
-      this.updatePropVisibility();
-      this.syncProps();
-      this.setSelection([]);
-      this.renderLayers();
-      this.render();
       this.setSaveStatus("Yüklendi · " + SSA.util.fmtDate(proj.updatedAt));
     },
 
-    openImageFromBlob: function (blob, name, pane) {
+    /* Görseli tuvale yeni bir öğe olarak ekler (Ctrl+V, sürükle-bırak, dosya, ekran görüntüsü).
+       İlk görsel (0,0)'a, sonrakiler mevcut görsellerin sağına yerleşir. */
+    /* Birden fazla dosyayı sırayla ekler (yerleşim sırası korunur) */
+    openImageFiles: function (files) {
       const self = this;
+      const list = Array.prototype.filter.call(files || [], function (f) {
+        return f && f.type && f.type.indexOf("image") === 0;
+      });
+      const next = function (i) {
+        if (i >= list.length) return;
+        self.openImageFromBlob(list[i], list[i].name, function () {
+          next(i + 1);
+        });
+      };
+      next(0);
+    },
+
+    openImageFromBlob: function (blob, name, done) {
+      const self = this;
+      const finish = typeof done === "function" ? done : function () {};
       const url = URL.createObjectURL(blob);
       const img = new Image();
       img.onload = function () {
         const usePng = img.naturalWidth * img.naturalHeight < 4000000;
         const src = SSA.imageToDataURL(img, 3600, usePng);
-        if (!self.state.project) self.newProject();
-        const proj = self.state.project;
-        if (pane !== 2) pane = 1;
-        const hadImage = pane === 2 ? !!proj.image2 : !!proj.image;
-        const lostAnns = (pane === 2 ? proj.annotations2 || [] : proj.annotations || []).length;
-        if (pane === 2) {
-          proj.image2 = { src: src, w: img.naturalWidth, h: img.naturalHeight };
-          proj.annotations2 = [];
-        } else {
-          proj.image = { src: src, w: img.naturalWidth, h: img.naturalHeight };
-          proj.annotations = [];
-          if (!proj.image2) proj.numberSeed = 1;
-        }
-        if (name) {
-          const base = name.replace(/\.[a-z0-9]+$/i, "");
-          if (!hadImage && pane !== 2 && (/^UAT - /.test(proj.name) || !proj.name)) proj.name = base;
-          self.el.projectName.value = proj.name;
-        }
+        URL.revokeObjectURL(url);
         const copy = new Image();
         copy.onload = function () {
-          if (pane === 2) {
-            proj.image2.w = copy.naturalWidth;
-            proj.image2.h = copy.naturalHeight;
-            proj.imageEl2 = copy;
-            proj.image2Pos = { x: (proj.image ? proj.image.w : 0) + SSA.PANE_GAP, y: 0 };
-            if (typeof proj.image2Opacity !== "number") proj.image2Opacity = 1;
-            self.state.selectedIds2 = [];
-            self.state.activePane = 2;
-          } else {
-            proj.image.w = copy.naturalWidth;
-            proj.image.h = copy.naturalHeight;
-            proj.imageEl = copy;
-            self.state.selectedIds = [];
-            if (!proj.image2) self.state.activePane = 1;
+          if (!self.state.project) self.newProject();
+          const proj = self.state.project;
+          if (self.state.activePane !== 1) self.state.activePane = 1;
+          const w = copy.naturalWidth;
+          const h = copy.naturalHeight;
+          const first = !SSA.contentBBox(proj, true);
+          const ib = SSA.contentBBox(proj, true) || SSA.contentBBox(proj);
+          const x = ib ? Math.round(ib.x + ib.w + 40) : 0;
+          const y = ib ? Math.round(ib.y) : 0;
+          const assetId = SSA.Assets.add(proj, src, w, h);
+          if (name && first && (/^UAT - /.test(proj.name) || !proj.name)) {
+            proj.name = name.replace(/\.[a-z0-9]+$/i, "");
+            self.el.projectName.value = proj.name;
           }
-          self.state.preview = null;
-          self.state.previewPane = self.state.activePane;
-          // Görsel değiştirildiyse geçmişi silme; eski görsel + işaretlemeler Geri Al ile döner.
-          if (hadImage && SSA.History.stack.length) self.commitHistory();
-          else SSA.History.reset(self.snapshot());
-          self.updateHistoryButtons();
-          self.updatePaneSwitch();
-          self.updatePropVisibility();
-          self.syncProps();
+          const added = self.addAnnotation(SSA.imageAnn(assetId, x, y, w, h));
+          self.setTool("select");
+          if (added) self.setSelection([added.id]);
           self.updateEmpty();
           if (!self.el.introBar.hidden) self.dismissIntro();
           self.fitView();
-          self.renderLayers();
+          self.updatePropVisibility();
+          self.syncProps();
           self.render();
-          self.saveSoon();
-          if (hadImage && lostAnns) {
-            self.showUndo("Görsel değiştirildi · " + lostAnns + " işaretleme kaldırıldı");
-          } else {
-            self.toast(
-              "Görsel yüklendi · " +
-                (pane === 2 ? proj.image2.w + "×" + proj.image2.h : proj.image.w + "×" + proj.image.h),
-              "ok"
-            );
-          }
+          self.toast("Görsel eklendi · " + w + "×" + h + (first ? "" : " · taşımak için sürükleyin"), "ok");
+          finish();
         };
         copy.onerror = function () {
           self.toast("Görsel işlenemedi", "error");
+          finish();
         };
         copy.src = src;
-        URL.revokeObjectURL(url);
       };
       img.onerror = function () {
         URL.revokeObjectURL(url);
         self.toast("Görsel açılamadı", "error");
+        finish();
       };
       img.src = url;
     },
@@ -1839,52 +1825,75 @@
         });
     },
 
-    applyCrop: function (rect, pane) {
+    /* Kırp: seçilen alan, altındaki görsel öğesinden kesilir.
+       Öncelik: seçili görsel → alanın ortasındaki en üstteki görsel → kesişen en üstteki görsel. */
+    applyCrop: function (rect) {
       const self = this;
       const p = this.state.project;
-      if (!p || !p.image || !p.imageEl) return;
-      const usePane2 = pane === 2 && p.image2 && p.imageEl2;
-      const target = usePane2 ? p.image2 : p.image;
-      const targetEl = usePane2 ? p.imageEl2 : p.imageEl;
-      const annArr = usePane2 ? p.annotations2 || [] : p.annotations;
-      const x = clamp(Math.round(rect.x), 0, target.w - 1);
-      const y = clamp(Math.round(rect.y), 0, target.h - 1);
-      const w = Math.min(Math.round(rect.w), target.w - x);
-      const h = Math.min(Math.round(rect.h), target.h - y);
-      if (w < 6 || h < 6) return;
-
-      const c = document.createElement("canvas");
-      c.width = w;
-      c.height = h;
-      c.getContext("2d").drawImage(targetEl, x, y, w, h, 0, 0, w, h);
-      const src = c.toDataURL("image/png");
-      const img = new Image();
-      img.onload = function () {
-        if (usePane2) {
-          p.image2 = { src: src, w: w, h: h };
-          p.imageEl2 = img;
-        } else {
-          p.image = { src: src, w: w, h: h };
-          p.imageEl = img;
-        }
-        self.commitHistory();
-        self.fitView();
-        self.renderLayers();
-        self.render();
-        self.saveSoon();
-        self.showUndo("Görsel kırpıldı · " + w + "×" + h);
+      if (!p) return;
+      const imgs = p.annotations.filter(function (a) {
+        return a.type === "image" && !a.hidden;
+      });
+      const inter = function (a) {
+        const x1 = Math.max(a.x, rect.x);
+        const y1 = Math.max(a.y, rect.y);
+        const x2 = Math.min(a.x + a.w, rect.x + rect.w);
+        const y2 = Math.min(a.y + a.h, rect.y + rect.h);
+        return x2 - x1 >= 6 && y2 - y1 >= 6 ? { x: x1, y: y1, w: x2 - x1, h: y2 - y1 } : null;
       };
-      img.src = src;
-
-      for (let i = 0; i < annArr.length; i++) {
-        SSA.geom.translate(annArr[i], -x, -y);
+      const cx = rect.x + rect.w / 2;
+      const cy = rect.y + rect.h / 2;
+      const selIds = this.state.selectedIds;
+      let target = null;
+      for (let i = imgs.length - 1; i >= 0 && !target; i--) {
+        if (selIds.indexOf(imgs[i].id) >= 0 && inter(imgs[i])) target = imgs[i];
       }
+      for (let i = imgs.length - 1; i >= 0 && !target; i--) {
+        const a = imgs[i];
+        if (cx >= a.x && cx <= a.x + a.w && cy >= a.y && cy <= a.y + a.h) target = a;
+      }
+      for (let i = imgs.length - 1; i >= 0 && !target; i--) {
+        if (inter(imgs[i])) target = imgs[i];
+      }
+      if (!target) {
+        this.toast("Kırpmak için bir görselin üzerinde alan seçin", "error");
+        return;
+      }
+      const el = SSA.Assets.el(target.asset);
+      if (!el) return;
+      const r = inter(target);
+      const sx = el.naturalWidth / target.w;
+      const sy = el.naturalHeight / target.h;
+      const px = Math.round((r.x - target.x) * sx);
+      const py = Math.round((r.y - target.y) * sy);
+      const pw = Math.max(1, Math.round(r.w * sx));
+      const ph = Math.max(1, Math.round(r.h * sy));
+      const c = document.createElement("canvas");
+      c.width = pw;
+      c.height = ph;
+      c.getContext("2d").drawImage(el, px, py, pw, ph, 0, 0, pw, ph);
+      const src = c.toDataURL("image/png");
+      target.asset = SSA.Assets.add(p, src, pw, ph);
+      target.x = r.x;
+      target.y = r.y;
+      target.w = r.w;
+      target.h = r.h;
+      this.setTool("select");
+      this.setSelection([target.id]);
+      this.commitHistory();
+      this.renderLayers();
+      this.render();
+      this.saveSoon();
+      setTimeout(function () {
+        self.render();
+      }, 60);
+      this.showUndo("Görsel kırpıldı · " + pw + "×" + ph);
     },
 
     /* ---------- export ---------- */
     exportPNG: function () {
       const p = this.state.project;
-      if (!p || !p.image) {
+      if (!p || !SSA.contentBBox(p)) {
         this.toast("Önce bir görsel açın", "error");
         return;
       }
@@ -1933,7 +1942,7 @@
     copyPNG: function () {
       const self = this;
       const p = this.state.project;
-      if (!p || !p.image) {
+      if (!p || !SSA.contentBBox(p)) {
         this.toast("Önce bir görsel açın", "error");
         return;
       }
@@ -1948,7 +1957,7 @@
     },
     exportJSON: function () {
       const p = this.state.project;
-      if (!p || !p.image) {
+      if (!p || !SSA.contentBBox(p)) {
         this.toast("Önce bir görsel açın", "error");
         return;
       }
@@ -1959,46 +1968,10 @@
       const self = this;
       SSA.Export.readJSON(file)
         .then(function (data) {
-          const proj = {
-            id: SSA.util.uid(),
-            name: data.name || "İçe aktarılan",
-            image: { src: data.image.src, w: data.image.w, h: data.image.h },
-            imageEl: new Image(),
-            annotations: data.annotations || [],
-            image2: data.image2 ? { src: data.image2.src, w: data.image2.w, h: data.image2.h } : null,
-            imageEl2: data.image2 ? new Image() : null,
-            annotations2: data.annotations2 || [],
-            image2Pos: data.image2 ? data.image2Pos || { x: data.image.w + SSA.PANE_GAP, y: 0 } : null,
-            image2Opacity: typeof data.image2Opacity === "number" ? data.image2Opacity : 1,
-            view: { scale: 1, ox: 0, oy: 0 },
-            numberSeed: data.numberSeed || 1,
-            updatedAt: Date.now()
-          };
-          proj.imageEl.onload = function () {
-            self.fitView();
-            self.render();
-          };
-          proj.imageEl.src = proj.image.src;
-          if (proj.image2) {
-            proj.imageEl2.onload = function () {
-              self.fitView();
-              self.render();
-            };
-            proj.imageEl2.src = proj.image2.src;
-          }
-          self.state.project = proj;
-          self.state.selectedIds = [];
-          self.state.selectedIds2 = [];
-          self.state.activePane = 1;
-          self.el.projectName.value = proj.name;
-          SSA.History.reset(self.snapshot());
-          self.updateHistoryButtons();
-          self.updatePaneSwitch();
-          self.updatePropVisibility();
-          self.syncProps();
-          self.updateEmpty();
-          self.renderLayers();
-          self.render();
+          const proj = self.projectFromData(data, SSA.util.uid());
+          if (!data.name) proj.name = "İçe aktarılan";
+          proj.updatedAt = Date.now();
+          self._activateProject(proj);
           self.saveSoon();
           self.toast("JSON içe aktarıldı", "ok");
         })
@@ -2010,40 +1983,40 @@
     /* ---------- save ---------- */
     save: function () {
       const p = this.state.project;
-      if (!p || !p.image || !p.imageEl) return;
+      if (!p) return;
+      const known = SSA.Store.list().some(function (m) {
+        return m.id === p.id;
+      });
+      // Hiç öğesi olmayan yeni projeyi kaydetme (ama kayıtlı bir proje boşaltıldıysa kaydet)
+      if (!p.annotations.length && !known) return;
       p.updatedAt = Date.now();
-      const thumb = SSA.makeThumb(p);
-      const beforeSrc = p.image.src;
       SSA.compressProject(p);
-      if (p.image.src !== beforeSrc) {
-        SSA.History.stack[SSA.History.index] = this.snapshot();
-      }
-      if (p.image && p.image.src) {
-        const self = this;
-        SSA.Store.saveProject(p)
-          .then(function (ok) {
-            if (!ok) {
-              self.setSaveStatus("Kaydedilemedi");
-              self.toast("Kaydedilemedi! Eski projeleri silin veya JSON olarak yedekleyin.", "error");
-              self.renderProjects();
-              return;
-            }
-            SSA.Store.upsertMeta({
-              id: p.id,
-              name: p.name,
-              updatedAt: p.updatedAt,
-              thumb: thumb,
-              w: p.image.w,
-              h: p.image.h
-            });
-            SSA.Store.setActive(p.id);
-            self.setSaveStatus("Kaydedildi · " + timeOnly(p.updatedAt));
-            self.renderProjects();
-          })
-          .catch(function () {
+      const thumb = SSA.makeThumb(p);
+      const cb = SSA.contentBBox(p) || { w: 0, h: 0 };
+      const self = this;
+      SSA.Store.saveProject(p)
+        .then(function (ok) {
+          if (!ok) {
             self.setSaveStatus("Kaydedilemedi");
+            self.toast("Kaydedilemedi! Eski projeleri silin veya JSON olarak yedekleyin.", "error");
+            self.renderProjects();
+            return;
+          }
+          SSA.Store.upsertMeta({
+            id: p.id,
+            name: p.name,
+            updatedAt: p.updatedAt,
+            thumb: thumb,
+            w: Math.round(cb.w),
+            h: Math.round(cb.h)
           });
-      }
+          SSA.Store.setActive(p.id);
+          self.setSaveStatus("Kaydedildi · " + timeOnly(p.updatedAt));
+          self.renderProjects();
+        })
+        .catch(function () {
+          self.setSaveStatus("Kaydedilemedi");
+        });
     },
     saveSoon: function () {
       if (!this._saveSoon) {
@@ -2201,9 +2174,10 @@
       stage.addEventListener("drop", function (e) {
         e.preventDefault();
         hide();
-        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        const files = (e.dataTransfer && e.dataTransfer.files) || [];
+        const f = files[0];
         if (!f) return;
-        if (f.type.indexOf("image") === 0) self.openImageFromBlob(f, f.name, self.state.activePane);
+        if (f.type.indexOf("image") === 0) self.openImageFiles(files);
         else if (/json/i.test(f.type) || /\.json$/i.test(f.name)) self.importJSONFile(f);
         else self.toast("Desteklenmeyen dosya", "error");
       });
@@ -2217,7 +2191,7 @@
       stage.addEventListener(
         "wheel",
         function (e) {
-          if (!self.state.project || !self.state.project.image) return;
+          if (!self.state.project) return;
           e.preventDefault();
           const rect = stage.getBoundingClientRect();
           const anchor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -2363,6 +2337,8 @@
 
   function layerLabel(a) {
     switch (a.type) {
+      case "image":
+        return "Görsel " + Math.round(a.w) + "×" + Math.round(a.h);
       case "arrow":
         return "Ok";
       case "line":
